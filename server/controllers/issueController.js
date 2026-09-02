@@ -58,6 +58,24 @@ const getIssues = async (req, res, next) => {
   }
 };
 
+// @desc    Get issue by ID
+// @route   GET /api/issues/:id
+// @access  Public
+const getIssueById = async (req, res, next) => {
+  try {
+    const issue = await Issue.findById(req.params.id).populate('reportedBy', 'name avatar');
+    
+    if (!issue) {
+      res.status(404);
+      throw new Error('Issue not found');
+    }
+
+    res.json(issue);
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Check for duplicate issues nearby
 // @route   POST /api/issues/check-duplicates
 // @access  Private
@@ -94,5 +112,6 @@ const checkDuplicates = async (req, res, next) => {
 module.exports = {
   createIssue,
   getIssues,
+  getIssueById,
   checkDuplicates
 };

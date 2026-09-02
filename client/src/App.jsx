@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ReportIssue from './pages/ReportIssue';
 import MapPage from './pages/MapPage';
+import IssueDetail from './pages/IssueDetail';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const Navigation = () => {
@@ -57,6 +58,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/map" element={<MapPage />} />
+              <Route path="/issues/:id" element={<IssueDetail />} />
               <Route path="/report" element={
                 <ProtectedRoute>
                   <ReportIssue />
