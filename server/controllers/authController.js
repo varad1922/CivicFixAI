@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const { OAuth2Client } = require('google-auth-library');
+const { logActivity } = require('../services/activityService');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -32,6 +33,8 @@ const registerUser = async (req, res, next) => {
     });
 
     if (user) {
+      await logActivity('USER_REGISTERED', user._id, null, { method: 'email' });
+      
       res.status(201).json({
         _id: user.id,
         name: user.name,
@@ -85,6 +88,8 @@ const loginUser = async (req, res, next) => {
     user.lastLogin = new Date();
     user.lastActive = new Date();
     await user.save();
+    
+    await logActivity('USER_LOGGED_IN', user._id, null, { method: 'email' });
 
     res.json({
       _id: user.id,
@@ -158,6 +163,7 @@ const googleAuth = async (req, res, next) => {
         avatar: picture,
         authProvider: 'google',
       });
+      await logActivity('USER_REGISTERED', user._id, null, { method: 'google' });
     } else {
       // Existing user: ensure authProvider is either email or google, maybe link them
       if (user.authProvider === 'email' && !user.avatar) {
@@ -174,6 +180,8 @@ const googleAuth = async (req, res, next) => {
     user.lastLogin = new Date();
     user.lastActive = new Date();
     await user.save();
+    
+    await logActivity('USER_LOGGED_IN', user._id, null, { method: 'google' });
 
     res.json({
       _id: user.id,

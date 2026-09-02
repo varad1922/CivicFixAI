@@ -1,4 +1,5 @@
 const Issue = require('../models/Issue');
+const { logActivity } = require('../services/activityService');
 
 // @desc    Create new issue
 // @route   POST /api/issues
@@ -39,6 +40,8 @@ const createIssue = async (req, res, next) => {
         note: 'Issue reported'
       }]
     });
+    
+    await logActivity('ISSUE_SUBMITTED', req.user.id, issue._id, { category, severity });
 
     res.status(201).json(issue);
   } catch (error) {
@@ -163,6 +166,11 @@ const updateStatus = async (req, res, next) => {
     });
 
     await issue.save();
+    
+    if (status === 'Resolved' || status === 'Closed') {
+      await logActivity('ISSUE_VERIFIED', req.user.id, issue._id, { status });
+    }
+    
     res.json(issue);
   } catch (error) {
     next(error);
