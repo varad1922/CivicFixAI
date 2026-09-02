@@ -4,6 +4,7 @@ import { useContext } from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ReportIssue from './pages/ReportIssue';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const Navigation = () => {
@@ -45,13 +46,18 @@ function App() {
                 <div className="max-w-4xl mx-auto text-center mt-12">
                   <h2 className="text-4xl font-extrabold text-deep-green mb-4">YOUR CITY. IN REAL TIME.</h2>
                   <p className="text-xl text-ink/80 mb-8">Civic Intelligence & Issue Resolution Platform</p>
-                  <Link to="/register" className="bg-orange text-paper px-6 py-3 rounded text-lg font-bold hover:bg-orange/90 transition-colors shadow-md">
+                  <Link to="/report" className="bg-orange text-paper px-6 py-3 rounded text-lg font-bold hover:bg-orange/90 transition-colors shadow-md">
                     Report an Issue
                   </Link>
                 </div>
               } />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/report" element={
+                <ProtectedRoute>
+                  <ReportIssue />
+                </ProtectedRoute>
+              } />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <div className="max-w-4xl mx-auto mt-8">

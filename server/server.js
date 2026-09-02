@@ -22,6 +22,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/upload', require('./routes/uploadRoutes'));
 app.use('/api/ai', require('./routes/aiRoutes'));
+app.use('/api/issues', require('./routes/issueRoutes'));
 
 // Basic Route for root
 app.get('/', (req, res) => {
