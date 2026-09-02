@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --ink: #17211E;
+    --deep-green: #214E3B;
+    --civic-green: #4F7D61;
+    --paper: #F7F5EF;
+    --sand: #E8E3D6;
+    --orange: #E76F51;
+    --amber: #E9B44C;
+    --info-blue: #457B9D;
+    --danger: #C94C4C;
+  }
+  body {
+    @apply bg-paper text-ink font-sans;
+  }
+}
