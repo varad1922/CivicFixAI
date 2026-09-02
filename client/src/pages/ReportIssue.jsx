@@ -104,8 +104,9 @@ const ReportIssue = () => {
       setLoading(false);
       nextStep();
     } catch (err) {
-      setError(err.response?.data?.message || err.message);
+      setError('AI analysis failed. You can retry or continue manually.');
       setLoading(false);
+      // Don't block the flow entirely, just show the error.
     }
   };
 
@@ -135,92 +136,166 @@ const ReportIssue = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto mt-8 bg-paper text-ink p-6 rounded shadow-sm border border-deep-green/10">
-      <h2 className="text-3xl font-bold text-deep-green mb-6 border-b border-deep-green/20 pb-2">Report an Issue</h2>
+    <div className="max-w-3xl mx-auto mt-4 md:mt-8 bg-paper text-ink p-4 md:p-8 rounded-xl shadow-sm border border-deep-green/10">
+      <h2 className="text-2xl md:text-3xl font-bold text-deep-green mb-6 border-b border-deep-green/10 pb-4">Report an Issue</h2>
       
-      {error && <div className="bg-danger text-paper p-3 rounded mb-4">{error}</div>}
+      {/* Progress Indicator */}
+      <div className="flex justify-between mb-8 relative px-2">
+        <div className="absolute top-1/2 left-4 right-4 h-1 bg-deep-green/10 -z-10 transform -translate-y-1/2 rounded"></div>
+        <div className="absolute top-1/2 left-4 h-1 bg-deep-green -z-10 transform -translate-y-1/2 transition-all duration-300 rounded" style={{ width: `calc(${((step - 1) / 3) * 100}% - 2rem)` }}></div>
+        {[1, 2, 3, 4].map(s => (
+          <div key={s} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${step >= s ? 'bg-deep-green text-paper shadow-md' : 'bg-sand text-ink/40 border border-deep-green/20'}`}>
+            {s}
+          </div>
+        ))}
+      </div>
+      
+      {error && <div className="bg-danger text-paper p-4 rounded-lg mb-6 shadow-sm font-medium">{error}</div>}
       
       {step === 1 && (
-        <div className="space-y-4">
-          <h3 className="text-xl font-semibold">Step 1: Capture the problem</h3>
-          <input type="file" accept="image/*" onChange={handleImageUpload} className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-sand file:text-deep-green hover:file:bg-sand/80"/>
-          {formData.imagePreview && <img src={formData.imagePreview} alt="Preview" className="w-full max-h-64 object-cover rounded" />}
-          <button onClick={nextStep} disabled={!formData.image} className="bg-deep-green text-paper px-4 py-2 rounded hover:bg-civic-green disabled:opacity-50">Next</button>
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+          <div>
+            <h3 className="text-xl md:text-2xl font-bold text-deep-green mb-2">Step 1: Capture the problem</h3>
+            <p className="text-ink/70">Upload a clear photo of the issue to help authorities identify it.</p>
+          </div>
+          
+          <div className="bg-sand/30 p-6 rounded-xl border border-dashed border-deep-green/30 flex flex-col items-center justify-center relative min-h-[200px]">
+            <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+            {!formData.imagePreview ? (
+              <div className="text-center text-ink/60 pointer-events-none">
+                <div className="bg-deep-green/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-deep-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                </div>
+                <p className="font-semibold">Tap to take a photo or upload</p>
+                <p className="text-xs mt-1">JPEG, PNG up to 10MB</p>
+              </div>
+            ) : (
+              <img src={formData.imagePreview} alt="Preview" className="w-full max-h-64 object-cover rounded-lg shadow-sm" />
+            )}
+          </div>
+          
+          <button onClick={nextStep} disabled={!formData.image} className="w-full bg-deep-green text-paper px-6 py-4 rounded-lg text-lg font-bold hover:bg-civic-green disabled:opacity-50 transition-colors shadow-md">
+            Continue to Location
+          </button>
         </div>
       )}
 
       {step === 2 && (
-        <div className="space-y-4">
-          <h3 className="text-xl font-semibold">Step 2: Locate the problem</h3>
-          <p>We need your location to accurately map the issue.</p>
-          <div className="flex gap-4">
-            <button onClick={prevStep} className="bg-sand text-ink px-4 py-2 rounded hover:bg-sand/80">Back</button>
-            <button onClick={getLocation} className="bg-deep-green text-paper px-4 py-2 rounded hover:bg-civic-green">
-              {loading ? 'Locating...' : 'Use My Location'}
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+          <div>
+            <h3 className="text-xl md:text-2xl font-bold text-deep-green mb-2">Step 2: Locate the problem</h3>
+            <p className="text-ink/70">We need your location to accurately map the issue for authorities.</p>
+          </div>
+          
+          <div className="flex flex-col gap-4">
+            <button onClick={getLocation} className="w-full bg-deep-green text-paper px-6 py-4 rounded-lg text-lg font-bold hover:bg-civic-green shadow-md flex justify-center items-center gap-2">
+              {loading ? (
+                <span className="flex items-center gap-2"><span className="animate-spin h-5 w-5 border-2 border-paper border-t-transparent rounded-full"></span> Locating...</span>
+              ) : (
+                'Use My Current Location'
+              )}
             </button>
-            {formData.location && <button onClick={nextStep} className="bg-orange text-paper px-4 py-2 rounded">Skip (Already located)</button>}
+            {formData.location && (
+              <button onClick={nextStep} className="w-full bg-orange text-paper px-6 py-4 rounded-lg text-lg font-bold hover:bg-orange/90 shadow-md">
+                Skip (Already Located)
+              </button>
+            )}
+            <button onClick={prevStep} className="w-full bg-sand text-deep-green px-6 py-4 rounded-lg text-lg font-bold hover:bg-sand/80 transition-colors mt-2">
+              Back to Photo
+            </button>
           </div>
         </div>
       )}
 
       {step === 3 && (
-        <div className="space-y-4">
-          <h3 className="text-xl font-semibold">Step 3: Analyze Issue</h3>
-          <p>Let our AI suggest categories and severity based on your image.</p>
-          <div className="flex gap-4">
-            <button onClick={prevStep} className="bg-sand text-ink px-4 py-2 rounded hover:bg-sand/80">Back</button>
-            <button onClick={analyzeIssue} className="bg-deep-green text-paper px-4 py-2 rounded hover:bg-civic-green">
-              {loading ? 'Analyzing...' : 'Analyze Issue'}
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+          <div>
+            <h3 className="text-xl md:text-2xl font-bold text-deep-green mb-2">Step 3: Analyze Issue</h3>
+            <p className="text-ink/70">Let our AI suggest categories and severity based on your image to save you time.</p>
+          </div>
+          
+          <div className="flex flex-col gap-4">
+            <button onClick={analyzeIssue} className="w-full bg-deep-green text-paper px-6 py-4 rounded-lg text-lg font-bold hover:bg-civic-green shadow-md flex justify-center items-center gap-2">
+              {loading ? (
+                <span className="flex items-center gap-2"><span className="animate-spin h-5 w-5 border-2 border-paper border-t-transparent rounded-full"></span> Analyzing Image...</span>
+              ) : (
+                'Run AI Analysis'
+              )}
             </button>
-            <button onClick={nextStep} className="text-deep-green underline pt-2">Skip AI Analysis</button>
+            <div className="flex flex-col md:flex-row gap-4 mt-2">
+              <button onClick={prevStep} className="w-full md:w-1/2 bg-sand text-deep-green px-6 py-4 rounded-lg text-lg font-bold hover:bg-sand/80 transition-colors">
+                Back
+              </button>
+              <button onClick={nextStep} className="w-full md:w-1/2 bg-paper border-2 border-deep-green text-deep-green px-6 py-4 rounded-lg text-lg font-bold hover:bg-sand/50 transition-colors">
+                Skip & Fill Manually
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {step === 4 && (
-        <div className="space-y-4">
-          <h3 className="text-xl font-semibold">Step 4: Review and Submit</h3>
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+          <div>
+            <h3 className="text-xl md:text-2xl font-bold text-deep-green mb-2">Step 4: Review and Submit</h3>
+            <p className="text-ink/70">Please review the details below. You can edit them if needed.</p>
+          </div>
           
           {duplicates.length > 0 && (
-            <div className="bg-amber/20 p-4 rounded border border-amber">
-              <h4 className="font-bold text-amber mb-2">Possible Similar Issues Nearby</h4>
-              <ul className="space-y-2">
+            <div className="bg-amber/10 p-4 rounded-lg border border-amber/30">
+              <h4 className="font-bold text-amber-600 mb-3 flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                Similar Issues Nearby
+              </h4>
+              <ul className="space-y-2 mb-2">
                 {duplicates.map(d => (
-                  <li key={d._id} className="text-sm border-b border-amber/20 pb-2">
-                    <span className="font-semibold">{d.title}</span> - {d.status}
+                  <li key={d._id} className="text-sm bg-paper p-2 rounded border border-amber/20 shadow-sm flex justify-between items-center">
+                    <span className="font-semibold truncate mr-2">{d.title}</span>
+                    <span className="text-xs bg-amber/20 text-amber-800 px-2 py-1 rounded">{d.status}</span>
                   </li>
                 ))}
               </ul>
-              <p className="text-xs mt-2 italic text-ink/70">If one of these is the same issue, you don't need to report it again.</p>
+              <p className="text-xs italic text-ink/60">If your issue is already reported above, you may not need to submit this.</p>
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-semibold">Title</label>
-            <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-2 border border-deep-green/30 rounded bg-paper" />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold">Description</label>
-            <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full p-2 border border-deep-green/30 rounded bg-paper" rows="4" />
-          </div>
-          <div className="flex gap-4">
-            <div className="w-1/2">
-              <label className="block text-sm font-semibold">Category</label>
-              <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full p-2 border border-deep-green/30 rounded bg-paper">
-                {['Pothole', 'Garbage Accumulation', 'Water Leakage', 'Broken Streetlight', 'Drainage Issue', 'Damaged Road', 'Illegal Dumping', 'Traffic Signal Issue', 'Public Property Damage', 'Other'].map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-deep-green mb-1">Title</label>
+              <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-3 border border-deep-green/20 rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-deep-green/50" placeholder="E.g., Large pothole on Main St" />
             </div>
-            <div className="w-1/2">
-              <label className="block text-sm font-semibold">Severity</label>
-              <select value={formData.severity} onChange={e => setFormData({...formData, severity: e.target.value})} className="w-full p-2 border border-deep-green/30 rounded bg-paper">
-                {['Low', 'Medium', 'High', 'Critical'].map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+            
+            <div>
+              <label className="block text-sm font-bold text-deep-green mb-1">Description</label>
+              <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full p-3 border border-deep-green/20 rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-deep-green/50" rows="4" placeholder="Provide more details..." />
+            </div>
+            
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="w-full md:w-1/2">
+                <label className="block text-sm font-bold text-deep-green mb-1">Category</label>
+                <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full p-3 border border-deep-green/20 rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-deep-green/50">
+                  {['Pothole', 'Garbage Accumulation', 'Water Leakage', 'Broken Streetlight', 'Drainage Issue', 'Damaged Road', 'Illegal Dumping', 'Traffic Signal Issue', 'Public Property Damage', 'Other'].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="w-full md:w-1/2">
+                <label className="block text-sm font-bold text-deep-green mb-1">Severity</label>
+                <select value={formData.severity} onChange={e => setFormData({...formData, severity: e.target.value})} className="w-full p-3 border border-deep-green/20 rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-deep-green/50">
+                  {['Low', 'Medium', 'High', 'Critical'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
             </div>
           </div>
-          <div className="flex gap-4 mt-6">
-            <button onClick={prevStep} className="bg-sand text-ink px-4 py-2 rounded hover:bg-sand/80">Back</button>
-            <button onClick={submitIssue} disabled={loading} className="bg-orange text-paper px-6 py-2 rounded hover:bg-orange/90 font-bold">
-              {loading ? 'Submitting...' : 'Submit Issue'}
+          
+          <div className="flex flex-col md:flex-row gap-4 mt-8 pt-4 border-t border-deep-green/10">
+            <button onClick={prevStep} className="w-full md:w-1/3 bg-sand text-deep-green px-6 py-4 rounded-lg text-lg font-bold hover:bg-sand/80 transition-colors order-2 md:order-1">
+              Back
+            </button>
+            <button onClick={submitIssue} disabled={loading} className="w-full md:w-2/3 bg-orange text-paper px-6 py-4 rounded-lg text-lg font-bold hover:bg-orange/90 shadow-md flex justify-center items-center gap-2 order-1 md:order-2">
+              {loading ? (
+                <span className="flex items-center gap-2"><span className="animate-spin h-5 w-5 border-2 border-paper border-t-transparent rounded-full"></span> Submitting...</span>
+              ) : (
+                'Submit Issue'
+              )}
             </button>
           </div>
         </div>

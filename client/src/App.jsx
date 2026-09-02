@@ -9,6 +9,7 @@ import Register from './pages/Register';
 import ReportIssue from './pages/ReportIssue';
 import MapPage from './pages/MapPage';
 import IssueDetail from './pages/IssueDetail';
+import Home from './pages/Home';
 import CitizenDashboard from './pages/dashboards/CitizenDashboard';
 import AuthorityDashboard from './pages/dashboards/AuthorityDashboard';
 import AdminDashboard from './pages/dashboards/AdminDashboard';
@@ -55,16 +56,7 @@ const DashboardRouter = () => {
   return <CitizenDashboard />;
 };
 
-// Placeholder Home component
-const Home = () => (
-  <div className="max-w-4xl mx-auto text-center mt-12 p-4">
-    <h2 className="text-3xl md:text-5xl font-extrabold text-deep-green mb-4">YOUR CITY. IN REAL TIME.</h2>
-    <p className="text-lg md:text-xl text-ink/80 mb-8">Civic Intelligence & Issue Resolution Platform</p>
-    <Link to="/report" className="bg-orange text-paper px-6 py-3 rounded text-lg font-bold hover:bg-orange/90 transition-colors shadow-md inline-block">
-      Report an Issue
-    </Link>
-  </div>
-);
+// Dashboard routing logic
 
 function App() {
   return (
