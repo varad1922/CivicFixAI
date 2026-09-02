@@ -121,10 +121,60 @@ const checkDuplicates = async (req, res, next) => {
   }
 };
 
+// @desc    Get queue for authority (simplified queue)
+// @route   GET /api/issues/queue
+// @access  Private (Authority/Admin)
+const getQueue = async (req, res, next) => {
+  try {
+    // For now, authorities see all unresolved issues sorted by priority and date
+    // Later we can filter by assigned district/category
+    const issues = await Issue.find({ status: { $ne: 'Closed' } })
+      .sort({ severity: -1, createdAt: -1 })
+      .populate('reportedBy', 'name');
+    res.json(issues);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update issue status
+// @route   PATCH /api/issues/:id/status
+// @access  Private (Authority/Admin)
+const updateStatus = async (req, res, next) => {
+  try {
+    const { status, note } = req.body;
+    
+    if (!status) {
+      res.status(400);
+      throw new Error('Status is required');
+    }
+
+    const issue = await Issue.findById(req.params.id);
+    if (!issue) {
+      res.status(404);
+      throw new Error('Issue not found');
+    }
+
+    issue.status = status;
+    issue.timeline.push({
+      status,
+      user: req.user.id,
+      note: note || `Status updated to ${status}`
+    });
+
+    await issue.save();
+    res.json(issue);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createIssue,
   getIssues,
   getMyIssues,
   getIssueById,
-  checkDuplicates
+  checkDuplicates,
+  getQueue,
+  updateStatus
 };

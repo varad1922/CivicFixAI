@@ -8,6 +8,7 @@ import ReportIssue from './pages/ReportIssue';
 import MapPage from './pages/MapPage';
 import IssueDetail from './pages/IssueDetail';
 import CitizenDashboard from './pages/dashboards/CitizenDashboard';
+import AuthorityDashboard from './pages/dashboards/AuthorityDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import { Link } from 'react-router-dom';
 
@@ -19,6 +20,10 @@ const DashboardRouter = () => {
   // Later we can add switch case for 'authority' and 'admin'
   if (user.role === 'citizen') {
     return <CitizenDashboard />;
+  }
+  
+  if (user.role === 'authority') {
+    return <AuthorityDashboard />;
   }
   
   // Fallback for now
