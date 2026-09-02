@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { Home, Map as MapIcon, PlusCircle, LayoutDashboard, User } from 'lucide-react';
+import Footer from './Footer';
 
 const Layout = ({ children }) => {
   const { user, logout } = useContext(AuthContext);
@@ -79,9 +80,10 @@ const Layout = ({ children }) => {
     <div className="min-h-screen bg-paper text-ink flex flex-col font-sans pb-16 md:pb-0">
       <NavigationDesktop />
       <NavigationMobile />
-      <main className="flex-grow w-full max-w-7xl mx-auto md:p-6 overflow-x-hidden">
+      <main className="flex-grow w-full max-w-7xl mx-auto md:p-6 overflow-x-hidden flex flex-col">
         {children}
       </main>
+      <Footer />
     </div>
   );
 };
