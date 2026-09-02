@@ -35,7 +35,26 @@ const IssueDetail = () => {
     fetchIssue();
   }, [id]);
 
-  if (loading) return <div className="text-center mt-12">Loading issue details...</div>;
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto mt-8 p-6 bg-paper rounded shadow-sm border border-deep-green/10 animate-pulse">
+        <div className="h-4 bg-sand rounded w-1/4 mb-6"></div>
+        <div className="flex flex-col md:flex-row gap-8">
+          <div className="md:w-2/3 w-full">
+            <div className="h-8 bg-sand rounded w-3/4 mb-4"></div>
+            <div className="h-4 bg-sand rounded w-full mb-6"></div>
+            <div className="h-64 bg-sand rounded w-full mb-6"></div>
+            <div className="h-4 bg-sand rounded w-full mb-2"></div>
+            <div className="h-4 bg-sand rounded w-5/6"></div>
+          </div>
+          <div className="md:w-1/3 w-full space-y-6">
+            <div className="h-48 bg-sand rounded w-full"></div>
+            <div className="h-20 bg-sand rounded w-full"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (error) return <div className="text-center mt-12 text-danger">{error}</div>;
   if (!issue) return null;
 
