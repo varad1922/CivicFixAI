@@ -7,8 +7,23 @@ import Register from './pages/Register';
 import ReportIssue from './pages/ReportIssue';
 import MapPage from './pages/MapPage';
 import IssueDetail from './pages/IssueDetail';
+import CitizenDashboard from './pages/dashboards/CitizenDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import { Link } from 'react-router-dom';
+
+const DashboardRouter = () => {
+  const { user } = useContext(AuthContext);
+  
+  if (!user) return null;
+  
+  // Later we can add switch case for 'authority' and 'admin'
+  if (user.role === 'citizen') {
+    return <CitizenDashboard />;
+  }
+  
+  // Fallback for now
+  return <CitizenDashboard />;
+};
 
 // Placeholder Home component
 const Home = () => (
@@ -40,10 +55,7 @@ function App() {
               } />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
-                  <div className="max-w-4xl mx-auto mt-8 p-4">
-                    <h2 className="text-3xl font-bold text-deep-green mb-4">Dashboard</h2>
-                    <p>Welcome to your civic control center. This is a protected route.</p>
-                  </div>
+                  <DashboardRouter />
                 </ProtectedRoute>
               } />
               <Route path="/profile" element={

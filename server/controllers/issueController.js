@@ -58,6 +58,18 @@ const getIssues = async (req, res, next) => {
   }
 };
 
+// @desc    Get logged in user issues
+// @route   GET /api/issues/my-issues
+// @access  Private
+const getMyIssues = async (req, res, next) => {
+  try {
+    const issues = await Issue.find({ reportedBy: req.user.id }).sort({ createdAt: -1 });
+    res.json(issues);
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Get issue by ID
 // @route   GET /api/issues/:id
 // @access  Public
@@ -112,6 +124,7 @@ const checkDuplicates = async (req, res, next) => {
 module.exports = {
   createIssue,
   getIssues,
+  getMyIssues,
   getIssueById,
   checkDuplicates
 };
