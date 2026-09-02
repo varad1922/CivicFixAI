@@ -58,7 +58,41 @@ const getIssues = async (req, res, next) => {
   }
 };
 
+// @desc    Check for duplicate issues nearby
+// @route   POST /api/issues/check-duplicates
+// @access  Private
+const checkDuplicates = async (req, res, next) => {
+  try {
+    const { coordinates, category } = req.body;
+    
+    if (!coordinates || !category) {
+      res.status(400);
+      throw new Error('Coordinates and category are required');
+    }
+
+    // Find issues within ~100 meters (maxDistance is in meters for 2dsphere)
+    const duplicates = await Issue.find({
+      category: category,
+      location: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: coordinates // [lng, lat]
+          },
+          $maxDistance: 100 // 100 meters radius
+        }
+      },
+      status: { $nin: ['Resolved', 'Closed'] }
+    }).limit(3);
+
+    res.json(duplicates);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createIssue,
-  getIssues
+  getIssues,
+  checkDuplicates
 };

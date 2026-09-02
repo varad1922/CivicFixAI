@@ -7,6 +7,7 @@ const ReportIssue = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [duplicates, setDuplicates] = useState([]);
   const navigate = useNavigate();
   const { token } = useContext(AuthContext);
 
@@ -88,6 +89,18 @@ const ReportIssue = () => {
         severity: aiRes.data.severity || 'Medium',
         image: uploadRes.data // save the uploaded details instead of file
       });
+      
+      // Check duplicates
+      try {
+        const dupRes = await axios.post('http://localhost:5000/api/issues/check-duplicates', {
+          coordinates: formData.location.coordinates,
+          category: aiRes.data.category || 'Other'
+        }, { headers: { Authorization: `Bearer ${token}` } });
+        setDuplicates(dupRes.data);
+      } catch (e) {
+        console.error('Duplicate check failed', e);
+      }
+      
       setLoading(false);
       nextStep();
     } catch (err) {
@@ -167,6 +180,21 @@ const ReportIssue = () => {
       {step === 4 && (
         <div className="space-y-4">
           <h3 className="text-xl font-semibold">Step 4: Review and Submit</h3>
+          
+          {duplicates.length > 0 && (
+            <div className="bg-amber/20 p-4 rounded border border-amber">
+              <h4 className="font-bold text-amber mb-2">Possible Similar Issues Nearby</h4>
+              <ul className="space-y-2">
+                {duplicates.map(d => (
+                  <li key={d._id} className="text-sm border-b border-amber/20 pb-2">
+                    <span className="font-semibold">{d.title}</span> - {d.status}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs mt-2 italic text-ink/70">If one of these is the same issue, you don't need to report it again.</p>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-semibold">Title</label>
             <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-2 border border-deep-green/30 rounded bg-paper" />
