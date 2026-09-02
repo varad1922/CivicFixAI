@@ -1,5 +1,4 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const supabase = require('../config/supabase');
 
 const protect = async (req, res, next) => {
   let token;
@@ -9,24 +8,38 @@ const protect = async (req, res, next) => {
       // Get token from header
       token = req.headers.authorization.split(' ')[1];
 
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      // Verify token with Supabase
+      const { data: { user }, error } = await supabase.auth.getUser(token);
 
-      // Get user from the token
-      req.user = await User.findById(decoded.id).select('-password');
+      if (error || !user) {
+        throw new Error('Not authorized, token failed');
+      }
+
+      // Get profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
       
-      if (!req.user) {
+      if (!profile) {
         res.status(401);
-        throw new Error('Not authorized, user not found');
+        throw new Error('Not authorized, profile not found');
       }
       
-      if (!req.user.isActive) {
+      if (!profile.is_active) {
         res.status(401);
         throw new Error('Not authorized, account is inactive');
       }
 
+      req.user = profile;
+      
+      // We map _id to id for backward compatibility
+      req.user._id = profile.id;
+
       next();
     } catch (error) {
+      console.error(error);
       res.status(401);
       next(new Error('Not authorized, token failed'));
     }
