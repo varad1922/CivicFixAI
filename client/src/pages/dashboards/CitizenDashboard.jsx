@@ -3,6 +3,7 @@ import { AuthContext } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { PlusCircle, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import IssueList from '../../components/IssueList';
 
 const CitizenDashboard = () => {
   const { user, token } = useContext(AuthContext);
@@ -74,45 +75,15 @@ const CitizenDashboard = () => {
         </div>
       </div>
 
-      <div className="bg-paper rounded-lg shadow-sm border border-deep-green/10 overflow-hidden">
+      <div className="bg-paper rounded-lg shadow-sm border border-deep-green/10 overflow-hidden mt-6">
         <div className="p-4 bg-sand border-b border-deep-green/10">
-          <h2 className="text-xl font-bold text-deep-green">My Active Reports</h2>
+          <h2 className="text-xl font-bold text-deep-green">My Reports</h2>
         </div>
-        <div className="p-0">
+        <div className="p-4 md:p-6">
           {loading ? (
-            <div className="p-8 text-center text-ink/60">Loading your issues...</div>
-          ) : activeIssues.length === 0 ? (
-            <div className="p-8 text-center text-ink/60">
-              <p>You have no active issues.</p>
-              <Link to="/report" className="text-info-blue hover:underline mt-2 inline-block">Report an issue now</Link>
-            </div>
+            <div className="text-center text-ink/60 py-8">Loading your issues...</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-              {activeIssues.map(issue => (
-                <Link 
-                  key={issue._id} 
-                  to={`/issues/${issue._id}`}
-                  className="block bg-sand/30 p-4 rounded border border-deep-green/10 hover:border-deep-green/30 transition-colors"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-xs font-bold bg-deep-green/10 text-deep-green px-2 py-1 rounded">
-                      {issue.status}
-                    </span>
-                    <span className="text-xs text-ink/60">
-                      {new Date(issue.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <h3 className="font-bold text-lg mb-1 truncate">{issue.title}</h3>
-                  <p className="text-sm text-ink/80 mb-2 truncate">{issue.description}</p>
-                  <div className="flex justify-between items-center text-xs font-semibold">
-                    <span>{issue.category}</span>
-                    <span className={issue.severity === 'Critical' ? 'text-danger' : 'text-orange'}>
-                      {issue.severity}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
+            <IssueList issues={issues} emptyMessage="You haven't reported any issues yet." />
           )}
         </div>
       </div>
