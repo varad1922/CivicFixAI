@@ -46,6 +46,19 @@ const createIssue = async (req, res, next) => {
   }
 };
 
+// @desc    Get all issues
+// @route   GET /api/issues
+// @access  Public
+const getIssues = async (req, res, next) => {
+  try {
+    const issues = await Issue.find().sort({ createdAt: -1 });
+    res.json(issues);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
-  createIssue
+  createIssue,
+  getIssues
 };

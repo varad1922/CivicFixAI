@@ -5,6 +5,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ReportIssue from './pages/ReportIssue';
+import MapPage from './pages/MapPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const Navigation = () => {
@@ -15,11 +16,13 @@ const Navigation = () => {
       {user ? (
         <>
           <span className="text-sand/80 text-sm">Welcome, {user.name}</span>
+          <Link to="/map" className="hover:text-sand font-medium">Map</Link>
           <Link to="/dashboard" className="hover:text-sand font-medium">Dashboard</Link>
           <button onClick={logout} className="text-danger font-medium hover:text-red-400">Logout</button>
         </>
       ) : (
         <>
+          <Link to="/map" className="hover:text-sand font-medium">Map</Link>
           <Link to="/login" className="hover:text-sand font-medium">Login</Link>
           <Link to="/register" className="bg-sand text-deep-green px-4 py-1 rounded font-bold hover:bg-white transition-colors">Sign Up</Link>
         </>
@@ -53,6 +56,7 @@ function App() {
               } />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/map" element={<MapPage />} />
               <Route path="/report" element={
                 <ProtectedRoute>
                   <ReportIssue />
