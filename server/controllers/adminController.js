@@ -11,11 +11,24 @@ const getStats = async (req, res, next) => {
     const resolvedIssues = await Issue.countDocuments({ status: { $in: ['Resolved', 'Closed'] } });
     const pendingIssues = totalIssues - resolvedIssues;
 
+    const categoryTrends = await Issue.aggregate([
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    const activeUsers = await User.countDocuments({ isActive: true });
+    
+    // For resolution rate, simple percentage:
+    const resolutionRate = totalIssues === 0 ? 0 : Math.round((resolvedIssues / totalIssues) * 100);
+
     res.json({
       totalUsers,
+      activeUsers,
       totalIssues,
       resolvedIssues,
-      pendingIssues
+      pendingIssues,
+      resolutionRate,
+      categoryTrends
     });
   } catch (error) {
     next(error);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import axios from 'axios';
-import { Users, FileText, CheckCircle, Clock } from 'lucide-react';
+import { Users, FileText, CheckCircle, Clock, TrendingUp, BarChart2 } from 'lucide-react';
 
 const AdminDashboard = () => {
   const { token } = useContext(AuthContext);
@@ -38,26 +38,55 @@ const AdminDashboard = () => {
         <div className="text-center p-8">Loading analytics...</div>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-sand p-4 rounded shadow-sm border border-deep-green/10 flex flex-col items-center text-center">
               <Users size={24} className="text-deep-green mb-2" />
-              <p className="text-ink/60 text-xs font-semibold uppercase">Total Users</p>
-              <p className="text-3xl font-bold text-deep-green">{stats?.totalUsers || 0}</p>
+              <p className="text-ink/60 text-[10px] md:text-xs font-semibold uppercase">Total Users</p>
+              <p className="text-2xl md:text-3xl font-bold text-deep-green">{stats?.totalUsers || 0}</p>
             </div>
             <div className="bg-sand p-4 rounded shadow-sm border border-deep-green/10 flex flex-col items-center text-center">
-              <FileText size={24} className="text-deep-green mb-2" />
-              <p className="text-ink/60 text-xs font-semibold uppercase">Total Issues</p>
-              <p className="text-3xl font-bold text-deep-green">{stats?.totalIssues || 0}</p>
+              <TrendingUp size={24} className="text-info-blue mb-2" />
+              <p className="text-ink/60 text-[10px] md:text-xs font-semibold uppercase">Resolution Rate</p>
+              <p className="text-2xl md:text-3xl font-bold text-info-blue">{stats?.resolutionRate || 0}%</p>
             </div>
             <div className="bg-sand p-4 rounded shadow-sm border border-deep-green/10 flex flex-col items-center text-center">
               <Clock size={24} className="text-amber mb-2" />
-              <p className="text-ink/60 text-xs font-semibold uppercase">Pending Issues</p>
-              <p className="text-3xl font-bold text-amber">{stats?.pendingIssues || 0}</p>
+              <p className="text-ink/60 text-[10px] md:text-xs font-semibold uppercase">Pending Issues</p>
+              <p className="text-2xl md:text-3xl font-bold text-amber">{stats?.pendingIssues || 0}</p>
             </div>
             <div className="bg-sand p-4 rounded shadow-sm border border-deep-green/10 flex flex-col items-center text-center">
               <CheckCircle size={24} className="text-civic-green mb-2" />
-              <p className="text-ink/60 text-xs font-semibold uppercase">Resolved Issues</p>
-              <p className="text-3xl font-bold text-civic-green">{stats?.resolvedIssues || 0}</p>
+              <p className="text-ink/60 text-[10px] md:text-xs font-semibold uppercase">Resolved Issues</p>
+              <p className="text-2xl md:text-3xl font-bold text-civic-green">{stats?.resolvedIssues || 0}</p>
+            </div>
+          </div>
+
+          <div className="mb-8 bg-paper rounded shadow-sm border border-deep-green/10 overflow-hidden">
+            <div className="p-4 bg-sand border-b border-deep-green/10 flex items-center gap-2">
+              <BarChart2 size={20} className="text-deep-green" />
+              <h2 className="font-bold text-deep-green">Category Trends</h2>
+            </div>
+            <div className="p-4">
+              <div className="flex flex-col gap-3">
+                {stats?.categoryTrends?.slice(0, 5).map((trend, idx) => {
+                  // simple pure css bar chart
+                  const percentage = Math.round((trend.count / (stats.totalIssues || 1)) * 100);
+                  return (
+                    <div key={trend._id} className="w-full">
+                      <div className="flex justify-between text-xs mb-1 font-semibold">
+                        <span>{trend._id || 'Unknown'}</span>
+                        <span>{trend.count} ({percentage}%)</span>
+                      </div>
+                      <div className="w-full bg-sand rounded-full h-2">
+                        <div 
+                          className="bg-deep-green h-2 rounded-full" 
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
