@@ -1,5 +1,8 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
+const { OAuth2Client } = require('google-auth-library');
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -124,8 +127,70 @@ const getMe = async (req, res, next) => {
   }
 };
 
+// @desc    Authenticate with Google
+// @route   POST /api/auth/google
+// @access  Public
+const googleAuth = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      res.status(400);
+      throw new Error('Google token is required');
+    }
+
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    
+    const { email, name, picture } = ticket.getPayload();
+    const normalizedEmail = email.toLowerCase();
+
+    let user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      // Create new user for google sign in
+      user = await User.create({
+        name,
+        email: normalizedEmail,
+        password: Date.now().toString() + Math.random().toString(), // Dummy secure password
+        avatar: picture,
+        authProvider: 'google',
+      });
+    } else {
+      // Existing user: ensure authProvider is either email or google, maybe link them
+      if (user.authProvider === 'email' && !user.avatar) {
+        user.avatar = picture;
+      }
+      user.authProvider = 'google'; // Mark as google since they authenticated via google
+    }
+
+    if (!user.isActive) {
+      res.status(401);
+      throw new Error('Account is deactivated');
+    }
+
+    user.lastLogin = new Date();
+    user.lastActive = new Date();
+    await user.save();
+
+    res.json({
+      _id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+      token: generateToken(user._id),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   getMe,
+  googleAuth,
 };

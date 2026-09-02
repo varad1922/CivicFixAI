@@ -1,6 +1,7 @@
 import { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -12,7 +13,7 @@ const Register = () => {
   const [passwordError, setPasswordError] = useState('');
 
   const { name, email, password, confirmPassword } = formData;
-  const { register, error, setError, user } = useContext(AuthContext);
+  const { register, googleLogin, error, setError, user } = useContext(AuthContext);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,14 +45,36 @@ const Register = () => {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    const success = await googleLogin(credentialResponse.credential);
+    if (success) {
+      navigate('/dashboard');
+    }
+  };
+
   return (
-    <div className="min-h-[80vh] flex items-center justify-center bg-paper text-ink">
+    <div className="min-h-[80vh] flex items-center justify-center bg-paper text-ink mt-8 mb-8">
       <div className="bg-sand p-8 rounded-lg shadow-sm border border-deep-green/10 max-w-md w-full">
         <h1 className="text-3xl font-bold text-deep-green mb-6 text-center">Join CivicFix</h1>
         
         {error && <div className="bg-danger text-paper p-3 rounded mb-4 text-center">{error}</div>}
         {passwordError && <div className="bg-danger text-paper p-3 rounded mb-4 text-center">{passwordError}</div>}
         
+        <div className="flex justify-center mb-6">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => {
+              setError('Google registration failed');
+            }}
+          />
+        </div>
+
+        <div className="relative flex py-2 items-center mb-4">
+          <div className="flex-grow border-t border-deep-green/20"></div>
+          <span className="flex-shrink-0 mx-4 text-ink/50 text-sm">Or sign up with email</span>
+          <div className="flex-grow border-t border-deep-green/20"></div>
+        </div>
+
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-semibold mb-1" htmlFor="name">Full Name</label>

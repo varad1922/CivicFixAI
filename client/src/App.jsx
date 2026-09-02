@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import { useContext } from 'react';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -28,8 +29,9 @@ const Navigation = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || 'your-google-client-id.apps.googleusercontent.com'}>
+      <AuthProvider>
+        <Router>
         <div className="min-h-screen bg-paper text-ink flex flex-col">
           <header className="bg-deep-green text-paper p-4 flex justify-between items-center shadow-sm">
             <Link to="/" className="text-2xl font-bold hover:text-sand transition-colors">
@@ -63,6 +65,7 @@ function App() {
         </div>
       </Router>
     </AuthProvider>
+    </GoogleOAuthProvider>
   );
 }
 

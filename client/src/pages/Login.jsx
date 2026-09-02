@@ -1,6 +1,7 @@
 import { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -9,7 +10,7 @@ const Login = () => {
   });
 
   const { email, password } = formData;
-  const { login, error, setError, user } = useContext(AuthContext);
+  const { login, googleLogin, error, setError, user } = useContext(AuthContext);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,6 +36,13 @@ const Login = () => {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    const success = await googleLogin(credentialResponse.credential);
+    if (success) {
+      navigate('/dashboard');
+    }
+  };
+
   return (
     <div className="min-h-[80vh] flex items-center justify-center bg-paper text-ink">
       <div className="bg-sand p-8 rounded-lg shadow-sm border border-deep-green/10 max-w-md w-full">
@@ -42,6 +50,21 @@ const Login = () => {
         
         {error && <div className="bg-danger text-paper p-3 rounded mb-4 text-center">{error}</div>}
         
+        <div className="flex justify-center mb-6">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => {
+              setError('Google login failed');
+            }}
+          />
+        </div>
+
+        <div className="relative flex py-2 items-center mb-4">
+          <div className="flex-grow border-t border-deep-green/20"></div>
+          <span className="flex-shrink-0 mx-4 text-ink/50 text-sm">Or login with email</span>
+          <div className="flex-grow border-t border-deep-green/20"></div>
+        </div>
+
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-semibold mb-1" htmlFor="email">Email</label>
