@@ -18,11 +18,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/upload', require('./routes/uploadRoutes'));
 app.use('/api/ai', require('./routes/aiRoutes'));
 app.use('/api/issues', require('./routes/issueRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
 
 // Basic Route for root
 app.get('/', (req, res) => {

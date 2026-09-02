@@ -9,6 +9,7 @@ import MapPage from './pages/MapPage';
 import IssueDetail from './pages/IssueDetail';
 import CitizenDashboard from './pages/dashboards/CitizenDashboard';
 import AuthorityDashboard from './pages/dashboards/AuthorityDashboard';
+import AdminDashboard from './pages/dashboards/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import { Link } from 'react-router-dom';
 
@@ -24,6 +25,10 @@ const DashboardRouter = () => {
   
   if (user.role === 'authority') {
     return <AuthorityDashboard />;
+  }
+
+  if (user.role === 'admin') {
+    return <AdminDashboard />;
   }
   
   // Fallback for now
