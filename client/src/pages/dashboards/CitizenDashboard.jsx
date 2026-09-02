@@ -13,7 +13,7 @@ const CitizenDashboard = () => {
   useEffect(() => {
     const fetchMyIssues = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/issues/my-issues', {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/issues/my-issues`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setIssues(res.data);

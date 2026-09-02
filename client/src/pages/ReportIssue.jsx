@@ -69,14 +69,14 @@ const ReportIssue = () => {
       const uploadData = new FormData();
       uploadData.append('image', formData.image);
       
-      const uploadRes = await axios.post('http://localhost:5000/api/upload', uploadData, {
+      const uploadRes = await axios.post(`${import.meta.env.VITE_API_URL}/upload`, uploadData, {
         headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${token}` }
       });
 
       const imageUrl = uploadRes.data.url;
 
       // 2. Analyze Image
-      const aiRes = await axios.post('http://localhost:5000/api/ai/analyze-issue', { imageUrl }, {
+      const aiRes = await axios.post(`${import.meta.env.VITE_API_URL}/ai/analyze-issue`, { imageUrl }, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -92,7 +92,7 @@ const ReportIssue = () => {
       
       // Check duplicates
       try {
-        const dupRes = await axios.post('http://localhost:5000/api/issues/check-duplicates', {
+        const dupRes = await axios.post(`${import.meta.env.VITE_API_URL}/issues/check-duplicates`, {
           coordinates: formData.location.coordinates,
           category: aiRes.data.category || 'Other'
         }, { headers: { Authorization: `Bearer ${token}` } });
@@ -123,7 +123,7 @@ const ReportIssue = () => {
         aiAnalysis: formData.aiAnalysis
       };
 
-      await axios.post('http://localhost:5000/api/issues', issueData, {
+      await axios.post(`${import.meta.env.VITE_API_URL}/issues`, issueData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setLoading(false);

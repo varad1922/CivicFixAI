@@ -24,7 +24,7 @@ const IssueMap = () => {
   useEffect(() => {
     const fetchIssues = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/issues');
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/issues`);
         setIssues(res.data);
         setLoading(false);
       } catch (err) {
