@@ -1,6 +1,8 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { useContext, useEffect } from 'react';
+import { AuthContext, AuthProvider } from './context/AuthContext';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import ReactGA from 'react-ga4';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -12,6 +14,24 @@ import AuthorityDashboard from './pages/dashboards/AuthorityDashboard';
 import AdminDashboard from './pages/dashboards/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import { Link } from 'react-router-dom';
+
+// Initialize GA4
+const MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID;
+if (MEASUREMENT_ID) {
+  ReactGA.initialize(MEASUREMENT_ID);
+}
+
+const RouteTracker = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (MEASUREMENT_ID) {
+      ReactGA.send({ hitType: "pageview", page: location.pathname + location.search });
+    }
+  }, [location]);
+
+  return null;
+};
 
 const DashboardRouter = () => {
   const { user } = useContext(AuthContext);
@@ -51,6 +71,7 @@ function App() {
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || 'your-google-client-id.apps.googleusercontent.com'}>
       <AuthProvider>
         <Router>
+          <RouteTracker />
           <Layout>
             <Routes>
               <Route path="/" element={<Home />} />
