@@ -79,13 +79,31 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const googleLogin = async (tokenId) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await axios.post(`${API_URL}google`, { token: tokenId });
+      if (response.data) {
+        setToken(response.data.token);
+        setUser(response.data);
+      }
+      setLoading(false);
+      return true;
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+      setLoading(false);
+      return false;
+    }
+  };
+
   const logout = () => {
     setToken(null);
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, error, register, login, logout, setError }}>
+    <AuthContext.Provider value={{ user, token, loading, error, register, login, googleLogin, logout, setError }}>
       {children}
     </AuthContext.Provider>
   );
