@@ -3,14 +3,10 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const connectDB = require('./config/db');
 const { errorHandler } = require('./middleware/errorMiddleware');
 
 // Load environment variables
 dotenv.config();
-
-// Connect to database
-connectDB();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

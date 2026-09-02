@@ -1,5 +1,40 @@
-const Issue = require('../models/Issue');
+const supabase = require('../config/supabase');
 const { logActivity } = require('../services/activityService');
+
+// Map Supabase rows to MongoDB-like JSON for the frontend
+const mapIssue = (issue) => {
+  if (!issue) return null;
+  return {
+    _id: issue.id,
+    title: issue.title,
+    description: issue.description,
+    category: issue.category,
+    severity: issue.severity,
+    status: issue.status,
+    createdAt: issue.created_at,
+    location: {
+      type: 'Point',
+      coordinates: [Number(issue.lng), Number(issue.lat)],
+      address: issue.address
+    },
+    images: issue.images || [],
+    reportedBy: issue.reportedBy ? { _id: issue.reportedBy.id, name: issue.reportedBy.name, avatar: issue.reportedBy.avatar } : issue.reported_by,
+    aiAnalysis: {
+      category: issue.ai_category,
+      severity: issue.ai_severity,
+      confidence: issue.ai_confidence,
+      suggestedTitle: issue.ai_suggested_title,
+      suggestedDescription: issue.ai_suggested_description,
+      safetyImpact: issue.ai_safety_impact
+    },
+    timeline: (issue.timeline || []).map(t => ({
+      status: t.status,
+      timestamp: t.timestamp,
+      user: t.user_id,
+      note: t.note
+    }))
+  };
+};
 
 // @desc    Create new issue
 // @route   POST /api/issues
@@ -21,29 +56,45 @@ const createIssue = async (req, res, next) => {
       throw new Error('Please provide all required fields including location coordinates');
     }
 
-    const issue = await Issue.create({
+    const { data: issue, error } = await supabase.from('issues').insert({
       title,
       description,
       category,
       severity,
-      images: images || [],
-      location: {
-        type: 'Point',
-        coordinates: location.coordinates, // [longitude, latitude]
-        address: location.address || ''
-      },
-      reportedBy: req.user.id,
-      aiAnalysis: aiAnalysis || {},
-      timeline: [{
-        status: 'Reported',
-        user: req.user.id,
-        note: 'Issue reported'
-      }]
+      location: `SRID=4326;POINT(${location.coordinates[0]} ${location.coordinates[1]})`,
+      lng: location.coordinates[0],
+      lat: location.coordinates[1],
+      address: location.address || '',
+      reported_by: req.user.id,
+      ai_category: aiAnalysis?.category,
+      ai_severity: aiAnalysis?.severity,
+      ai_confidence: aiAnalysis?.confidence,
+      ai_suggested_title: aiAnalysis?.suggestedTitle,
+      ai_suggested_description: aiAnalysis?.suggestedDescription,
+      ai_safety_impact: aiAnalysis?.safetyImpact
+    }).select().single();
+
+    if (error) throw new Error(error.message);
+
+    if (images && images.length > 0) {
+       const { error: imgError } = await supabase.from('issue_images').insert(
+          images.map(img => ({ issue_id: issue.id, url: img.url, public_id: img.public_id }))
+       );
+       if (imgError) console.error('Image Insert Error:', imgError);
+    }
+
+    await supabase.from('issue_timeline').insert({
+       issue_id: issue.id,
+       status: 'Reported',
+       user_id: req.user.id,
+       note: 'Issue reported'
     });
     
-    await logActivity('ISSUE_SUBMITTED', req.user.id, issue._id, { category, severity });
+    await logActivity('ISSUE_SUBMITTED', req.user.id, issue.id, { category, severity });
 
-    res.status(201).json(issue);
+    // Send back formatted response
+    issue.images = images || [];
+    res.status(201).json(mapIssue(issue));
   } catch (error) {
     next(error);
   }
@@ -54,8 +105,18 @@ const createIssue = async (req, res, next) => {
 // @access  Public
 const getIssues = async (req, res, next) => {
   try {
-    const issues = await Issue.find().sort({ createdAt: -1 });
-    res.json(issues);
+    const { data, error } = await supabase
+      .from('issues')
+      .select(`
+        *,
+        reportedBy:profiles(id, name, avatar),
+        images:issue_images(url, public_id)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    res.json(data.map(mapIssue));
   } catch (error) {
     next(error);
   }
@@ -66,8 +127,19 @@ const getIssues = async (req, res, next) => {
 // @access  Private
 const getMyIssues = async (req, res, next) => {
   try {
-    const issues = await Issue.find({ reportedBy: req.user.id }).sort({ createdAt: -1 });
-    res.json(issues);
+    const { data, error } = await supabase
+      .from('issues')
+      .select(`
+        *,
+        reportedBy:profiles(id, name, avatar),
+        images:issue_images(url, public_id)
+      `)
+      .eq('reported_by', req.user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    res.json(data.map(mapIssue));
   } catch (error) {
     next(error);
   }
@@ -78,14 +150,23 @@ const getMyIssues = async (req, res, next) => {
 // @access  Public
 const getIssueById = async (req, res, next) => {
   try {
-    const issue = await Issue.findById(req.params.id).populate('reportedBy', 'name avatar');
-    
-    if (!issue) {
+    const { data, error } = await supabase
+      .from('issues')
+      .select(`
+        *,
+        reportedBy:profiles(id, name, avatar),
+        images:issue_images(url, public_id),
+        timeline:issue_timeline(*)
+      `)
+      .eq('id', req.params.id)
+      .single();
+      
+    if (error) {
       res.status(404);
       throw new Error('Issue not found');
     }
 
-    res.json(issue);
+    res.json(mapIssue(data));
   } catch (error) {
     next(error);
   }
@@ -103,20 +184,21 @@ const checkDuplicates = async (req, res, next) => {
       throw new Error('Coordinates and category are required');
     }
 
-    // Find issues within ~100 meters (maxDistance is in meters for 2dsphere)
-    const duplicates = await Issue.find({
-      category: category,
-      location: {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: coordinates // [lng, lat]
-          },
-          $maxDistance: 100 // 100 meters radius
-        }
-      },
-      status: { $nin: ['Resolved', 'Closed'] }
-    }).limit(3);
+    // Call RPC function find_nearby_issues
+    const { data, error } = await supabase
+      .rpc('find_nearby_issues', {
+        lon: coordinates[0],
+        lat: coordinates[1],
+        radius_meters: 100
+      });
+      
+    if (error) throw new Error(error.message);
+
+    // Filter by category and status
+    const duplicates = data
+      .filter(issue => issue.category === category && issue.status !== 'Resolved' && issue.status !== 'Closed')
+      .slice(0, 3)
+      .map(mapIssue);
 
     res.json(duplicates);
   } catch (error) {
@@ -129,12 +211,19 @@ const checkDuplicates = async (req, res, next) => {
 // @access  Private (Authority/Admin)
 const getQueue = async (req, res, next) => {
   try {
-    // For now, authorities see all unresolved issues sorted by priority and date
-    // Later we can filter by assigned district/category
-    const issues = await Issue.find({ status: { $ne: 'Closed' } })
-      .sort({ severity: -1, createdAt: -1 })
-      .populate('reportedBy', 'name');
-    res.json(issues);
+    const { data, error } = await supabase
+      .from('issues')
+      .select(`
+        *,
+        reportedBy:profiles(id, name, avatar)
+      `)
+      .neq('status', 'Closed')
+      .order('severity', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    res.json(data.map(mapIssue));
   } catch (error) {
     next(error);
   }
@@ -152,26 +241,38 @@ const updateStatus = async (req, res, next) => {
       throw new Error('Status is required');
     }
 
-    const issue = await Issue.findById(req.params.id);
-    if (!issue) {
+    const { data: issue, error: fetchError } = await supabase
+      .from('issues')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+      
+    if (fetchError || !issue) {
       res.status(404);
       throw new Error('Issue not found');
     }
 
-    issue.status = status;
-    issue.timeline.push({
+    const { error: updateError } = await supabase
+      .from('issues')
+      .update({ status })
+      .eq('id', req.params.id);
+
+    if (updateError) throw new Error(updateError.message);
+
+    await supabase.from('issue_timeline').insert({
+      issue_id: req.params.id,
       status,
-      user: req.user.id,
+      user_id: req.user.id,
       note: note || `Status updated to ${status}`
     });
-
-    await issue.save();
     
     if (status === 'Resolved' || status === 'Closed') {
-      await logActivity('ISSUE_VERIFIED', req.user.id, issue._id, { status });
+      await logActivity('ISSUE_VERIFIED', req.user.id, req.params.id, { status });
     }
     
-    res.json(issue);
+    // Return the updated issue mapped
+    const updatedIssue = mapIssue({ ...issue, status });
+    res.json(updatedIssue);
   } catch (error) {
     next(error);
   }

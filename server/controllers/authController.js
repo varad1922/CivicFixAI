@@ -1,9 +1,5 @@
-const User = require('../models/User');
-const generateToken = require('../utils/generateToken');
-const { OAuth2Client } = require('google-auth-library');
+const supabase = require('../config/supabase');
 const { logActivity } = require('../services/activityService');
-
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -17,36 +13,56 @@ const registerUser = async (req, res, next) => {
       throw new Error('Please add all fields (name, email, password)');
     }
 
-    // Check if user exists
-    const userExists = await User.findOne({ email: email.toLowerCase() });
-
-    if (userExists) {
-      res.status(400);
-      throw new Error('User already exists');
-    }
-
-    // Create user
-    const user = await User.create({
-      name,
+    // Create user via admin
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: email.toLowerCase(),
       password,
+      email_confirm: true,
+      user_metadata: { name }
     });
 
-    if (user) {
-      await logActivity('USER_REGISTERED', user._id, null, { method: 'email' });
-      
-      res.status(201).json({
-        _id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        avatar: user.avatar,
-        token: generateToken(user._id),
-      });
-    } else {
+    if (authError) {
       res.status(400);
-      throw new Error('Invalid user data');
+      throw new Error(authError.message);
     }
+
+    // Insert into profiles
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+         id: authData.user.id,
+         name,
+         email: email.toLowerCase()
+      })
+      .select()
+      .single();
+
+    if (profileError) {
+      res.status(400);
+      throw new Error(profileError.message);
+    }
+
+    // Now sign in to get token
+    const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase(),
+      password
+    });
+
+    if (sessionError) {
+      res.status(400);
+      throw new Error(sessionError.message);
+    }
+
+    await logActivity('USER_REGISTERED', profile.id, null, { method: 'email' });
+
+    res.status(201).json({
+      _id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      role: profile.role,
+      avatar: profile.avatar,
+      token: sessionData.session.access_token,
+    });
   } catch (error) {
     next(error);
   }
@@ -64,40 +80,42 @@ const loginUser = async (req, res, next) => {
       throw new Error('Please provide email and password');
     }
 
-    // Check for user email (selecting password for comparison)
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase(),
+      password
+    });
 
-    if (!user) {
+    if (error) {
       res.status(401);
       throw new Error('Invalid email or password');
     }
-    
-    if (!user.isActive) {
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    if (!profile || !profile.is_active) {
       res.status(401);
-      throw new Error('Account is deactivated');
+      throw new Error('Account is deactivated or not found');
     }
 
-    const isMatch = await user.matchPassword(password);
-
-    if (!isMatch) {
-      res.status(401);
-      throw new Error('Invalid email or password');
-    }
-    
     // Update lastLogin tracking
-    user.lastLogin = new Date();
-    user.lastActive = new Date();
-    await user.save();
-    
-    await logActivity('USER_LOGGED_IN', user._id, null, { method: 'email' });
+    await supabase.from('profiles').update({
+       last_login: new Date().toISOString(),
+       last_active: new Date().toISOString()
+    }).eq('id', profile.id);
+
+    await logActivity('USER_LOGGED_IN', profile.id, null, { method: 'email' });
 
     res.json({
-      _id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      avatar: user.avatar,
-      token: generateToken(user._id),
+      _id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      role: profile.role,
+      avatar: profile.avatar,
+      token: data.session.access_token,
     });
   } catch (error) {
     next(error);
@@ -109,17 +127,14 @@ const loginUser = async (req, res, next) => {
 // @access  Private
 const getMe = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
-    
-    if (!user) {
-      res.status(404);
-      throw new Error('User not found');
-    }
-    
+    // req.user is set in authMiddleware and contains the Supabase profile
+    const user = req.user;
+
     // Update last active on any protected request
-    user.lastActive = new Date();
-    await user.save();
-    
+    await supabase.from('profiles').update({
+       last_active: new Date().toISOString()
+    }).eq('id', user.id);
+
     res.json({
       _id: user.id,
       name: user.name,
@@ -138,58 +153,69 @@ const getMe = async (req, res, next) => {
 const googleAuth = async (req, res, next) => {
   try {
     const { token } = req.body;
-    
+
     if (!token) {
       res.status(400);
       throw new Error('Google token is required');
     }
 
-    const ticket = await client.verifyIdToken({
-      idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
+    const { data, error } = await supabase.auth.signInWithIdToken({
+      provider: 'google',
+      token
     });
-    
-    const { email, name, picture } = ticket.getPayload();
-    const normalizedEmail = email.toLowerCase();
 
-    let user = await User.findOne({ email: normalizedEmail });
-
-    if (!user) {
-      // Create new user for google sign in
-      user = await User.create({
-        name,
-        email: normalizedEmail,
-        password: Date.now().toString() + Math.random().toString(), // Dummy secure password
-        avatar: picture,
-        authProvider: 'google',
-      });
-      await logActivity('USER_REGISTERED', user._id, null, { method: 'google' });
-    } else {
-      // Existing user: ensure authProvider is either email or google, maybe link them
-      if (user.authProvider === 'email' && !user.avatar) {
-        user.avatar = picture;
-      }
-      user.authProvider = 'google'; // Mark as google since they authenticated via google
+    if (error) {
+      res.status(401);
+      throw new Error(error.message);
     }
 
-    if (!user.isActive) {
+    let { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    if (!profile) {
+      const { user } = data;
+      const { data: newProfile, error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+           id: user.id,
+           name: user.user_metadata.full_name || 'Google User',
+           email: user.email,
+           avatar: user.user_metadata.avatar_url || '',
+           auth_provider: 'google'
+        })
+        .select()
+        .single();
+        
+      if (profileError) {
+        res.status(400);
+        throw new Error(profileError.message);
+      }
+      profile = newProfile;
+      await logActivity('USER_REGISTERED', profile.id, null, { method: 'google' });
+    }
+
+    if (!profile.is_active) {
       res.status(401);
       throw new Error('Account is deactivated');
     }
 
-    user.lastLogin = new Date();
-    user.lastActive = new Date();
-    await user.save();
-    
-    await logActivity('USER_LOGGED_IN', user._id, null, { method: 'google' });
+    await supabase.from('profiles').update({
+       last_login: new Date().toISOString(),
+       last_active: new Date().toISOString()
+    }).eq('id', profile.id);
+
+    await logActivity('USER_LOGGED_IN', profile.id, null, { method: 'google' });
 
     res.json({
-      _id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      avatar: user.avatar,
-      token: generateToken(user._id),
+      _id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      role: profile.role,
+      avatar: profile.avatar,
+      token: data.session.access_token,
     });
   } catch (error) {
     next(error);
