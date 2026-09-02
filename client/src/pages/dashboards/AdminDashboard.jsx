@@ -13,8 +13,8 @@ const AdminDashboard = () => {
     const fetchAdminData = async () => {
       try {
         const [statsRes, usersRes] = await Promise.all([
-          axios.get('http://localhost:5000/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get('http://localhost:5000/api/admin/users', { headers: { Authorization: `Bearer ${token}` } })
+          axios.get(`${import.meta.env.VITE_API_URL}/admin/stats`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${import.meta.env.VITE_API_URL}/admin/users`, { headers: { Authorization: `Bearer ${token}` } })
         ]);
         setStats(statsRes.data);
         setUsers(usersRes.data);

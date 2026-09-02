@@ -12,7 +12,7 @@ const AuthorityDashboard = () => {
 
   const fetchQueue = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/issues/queue', {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/issues/queue`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setQueue(res.data);
@@ -29,7 +29,7 @@ const AuthorityDashboard = () => {
 
   const updateStatus = async (id, status) => {
     try {
-      await axios.patch(`http://localhost:5000/api/issues/${id}/status`, { status }, {
+      await axios.patch(`${import.meta.env.VITE_API_URL}/issues/${id}/status`, { status }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchQueue();
