@@ -11,6 +11,7 @@ const Register = () => {
     confirmPassword: '',
   });
   const [passwordError, setPasswordError] = useState('');
+  const [activeTab, setActiveTab] = useState('citizen');
 
   const { name, email, password, confirmPassword } = formData;
   const { register, googleLogin, error, setError, user } = useContext(AuthContext);
@@ -39,7 +40,7 @@ const Register = () => {
       return;
     }
     
-    const success = await register({ name, email, password });
+    const success = await register({ name, email, password, role: activeTab });
     if (success) {
       navigate('/dashboard');
     }
@@ -57,6 +58,21 @@ const Register = () => {
       <div className="bg-sand p-8 rounded-lg shadow-sm border border-deep-green/10 max-w-md w-full">
         <h1 className="text-3xl font-bold text-deep-green mb-6 text-center">Join CivicFix</h1>
         
+        <div className="flex mb-6 border-b border-deep-green/20">
+          <button
+            className={`flex-1 py-2 font-semibold transition-colors ${activeTab === 'citizen' ? 'text-deep-green border-b-2 border-deep-green' : 'text-ink/60 hover:text-deep-green'}`}
+            onClick={() => setActiveTab('citizen')}
+          >
+            Citizen
+          </button>
+          <button
+            className={`flex-1 py-2 font-semibold transition-colors ${activeTab === 'authority' ? 'text-deep-green border-b-2 border-deep-green' : 'text-ink/60 hover:text-deep-green'}`}
+            onClick={() => setActiveTab('authority')}
+          >
+            Authority
+          </button>
+        </div>
+
         {error && <div className="bg-danger text-paper p-3 rounded mb-4 text-center">{error}</div>}
         {passwordError && <div className="bg-danger text-paper p-3 rounded mb-4 text-center">{passwordError}</div>}
         
@@ -134,7 +150,7 @@ const Register = () => {
             type="submit"
             className="w-full bg-deep-green text-paper py-2 rounded font-semibold hover:bg-civic-green transition-colors"
           >
-            Sign Up
+            {activeTab === 'citizen' ? 'Sign Up as Citizen' : 'Sign Up as Authority'}
           </button>
         </form>
         

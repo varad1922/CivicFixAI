@@ -128,7 +128,7 @@ const ReportIssue = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setLoading(false);
-      navigate('/dashboard'); // or to issue detail
+      setStep(5); // Transition to success state
     } catch (err) {
       setError(err.response?.data?.message || err.message);
       setLoading(false);
@@ -140,15 +140,17 @@ const ReportIssue = () => {
       <h2 className="text-2xl md:text-3xl font-bold text-deep-green mb-6 border-b border-deep-green/10 pb-4">Report an Issue</h2>
       
       {/* Progress Indicator */}
-      <div className="flex justify-between mb-8 relative px-2">
-        <div className="absolute top-1/2 left-4 right-4 h-1 bg-deep-green/10 -z-10 transform -translate-y-1/2 rounded"></div>
-        <div className="absolute top-1/2 left-4 h-1 bg-deep-green -z-10 transform -translate-y-1/2 transition-all duration-300 rounded" style={{ width: `calc(${((step - 1) / 3) * 100}% - 2rem)` }}></div>
-        {[1, 2, 3, 4].map(s => (
-          <div key={s} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${step >= s ? 'bg-deep-green text-paper shadow-md' : 'bg-sand text-ink/40 border border-deep-green/20'}`}>
-            {s}
-          </div>
-        ))}
-      </div>
+      {step < 5 && (
+        <div className="flex justify-between mb-8 relative px-2">
+          <div className="absolute top-1/2 left-4 right-4 h-1 bg-deep-green/10 -z-10 transform -translate-y-1/2 rounded"></div>
+          <div className="absolute top-1/2 left-4 h-1 bg-deep-green -z-10 transform -translate-y-1/2 transition-all duration-300 rounded" style={{ width: `calc(${((step - 1) / 3) * 100}% - 2rem)` }}></div>
+          {[1, 2, 3, 4].map(s => (
+            <div key={s} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${step >= s ? 'bg-deep-green text-paper shadow-md' : 'bg-sand text-ink/40 border border-deep-green/20'}`}>
+              {s}
+            </div>
+          ))}
+        </div>
+      )}
       
       {error && <div className="bg-danger text-paper p-4 rounded-lg mb-6 shadow-sm font-medium">{error}</div>}
       
@@ -296,6 +298,39 @@ const ReportIssue = () => {
               ) : (
                 'Submit Issue'
               )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 5 && (
+        <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500 text-center py-8">
+          <div className="w-24 h-24 bg-civic-green/20 text-civic-green rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+          </div>
+          <h3 className="text-3xl font-extrabold text-deep-green mb-2">Issue Reported Successfully!</h3>
+          <p className="text-ink/70 text-lg mb-8 max-w-md mx-auto">
+            Thank you for helping improve the community. Authorities have been notified and you can track the progress on your dashboard.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <button onClick={() => navigate('/dashboard')} className="bg-deep-green text-paper px-8 py-4 rounded-lg text-lg font-bold hover:bg-civic-green shadow-md transition-all">
+              View My Issues
+            </button>
+            <button onClick={() => {
+              setStep(1);
+              setFormData({
+                image: null,
+                imagePreview: null,
+                location: null,
+                aiAnalysis: null,
+                title: '',
+                description: '',
+                category: 'Other',
+                severity: 'Medium'
+              });
+            }} className="bg-sand text-deep-green border-2 border-deep-green px-8 py-4 rounded-lg text-lg font-bold hover:bg-deep-green/10 transition-all">
+              Report Another Issue
             </button>
           </div>
         </div>

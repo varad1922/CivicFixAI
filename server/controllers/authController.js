@@ -6,19 +6,31 @@ const { logActivity } = require('../services/activityService');
 // @access  Public
 const registerUser = async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role = 'citizen' } = req.body;
 
     if (!name || !email || !password) {
       res.status(400);
       throw new Error('Please add all fields (name, email, password)');
     }
 
+    if (role === 'admin') {
+      res.status(403);
+      throw new Error('Cannot register as admin');
+    }
+    
+    if (role !== 'citizen' && role !== 'authority') {
+      res.status(400);
+      throw new Error('Invalid role specified');
+    }
+
+    const verification_status = role === 'authority' ? 'pending' : 'verified';
+
     // Create user via admin
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: email.toLowerCase(),
       password,
       email_confirm: true,
-      user_metadata: { name }
+      user_metadata: { name, role }
     });
 
     if (authError) {
@@ -32,7 +44,9 @@ const registerUser = async (req, res, next) => {
       .insert({
          id: authData.user.id,
          name,
-         email: email.toLowerCase()
+         email: email.toLowerCase(),
+         role,
+         verification_status
       })
       .select()
       .single();
@@ -61,6 +75,7 @@ const registerUser = async (req, res, next) => {
       email: profile.email,
       role: profile.role,
       avatar: profile.avatar,
+      verification_status: profile.verification_status,
       token: sessionData.session.access_token,
     });
   } catch (error) {
@@ -101,6 +116,20 @@ const loginUser = async (req, res, next) => {
       throw new Error('Account is deactivated or not found');
     }
 
+    // Check authority verification
+    if (profile.role === 'authority' && profile.verification_status === 'pending') {
+      res.status(403);
+      throw new Error('Your authority account is awaiting admin verification.');
+    }
+    if (profile.role === 'authority' && profile.verification_status === 'rejected') {
+      res.status(403);
+      throw new Error('Your authority account verification was rejected.');
+    }
+    if (profile.verification_status === 'suspended') {
+      res.status(403);
+      throw new Error('Your account is suspended.');
+    }
+
     // Update lastLogin tracking
     await supabase.from('profiles').update({
        last_login: new Date().toISOString(),
@@ -115,6 +144,7 @@ const loginUser = async (req, res, next) => {
       email: profile.email,
       role: profile.role,
       avatar: profile.avatar,
+      verification_status: profile.verification_status,
       token: data.session.access_token,
     });
   } catch (error) {
@@ -141,6 +171,65 @@ const getMe = async (req, res, next) => {
       email: user.email,
       role: user.role,
       avatar: user.avatar,
+      verification_status: user.verification_status,
+      phone: user.phone || '',
+      city: user.city || '',
+      created_at: user.created_at
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update user profile
+// @route   PATCH /api/auth/profile
+// @access  Private
+const updateProfile = async (req, res, next) => {
+  try {
+    const { name, phone, city, avatar } = req.body;
+    const user = req.user;
+
+    // Update basic fields in profiles table
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (avatar) updateData.avatar = avatar;
+
+    if (Object.keys(updateData).length > 0) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', user.id);
+        
+      if (profileError) {
+        res.status(400);
+        throw new Error(profileError.message);
+      }
+    }
+
+    // Update metadata (phone, city) in auth.users
+    const metadataUpdate = {};
+    if (phone !== undefined) metadataUpdate.phone = phone;
+    if (city !== undefined) metadataUpdate.city = city;
+
+    if (Object.keys(metadataUpdate).length > 0) {
+      const { error: authError } = await supabase.auth.admin.updateUserById(user.id, {
+        user_metadata: metadataUpdate
+      });
+      
+      if (authError) {
+        res.status(400);
+        throw new Error(authError.message);
+      }
+    }
+
+    res.json({
+      _id: user.id,
+      name: name || user.name,
+      email: user.email,
+      role: user.role,
+      avatar: avatar || user.avatar,
+      phone: phone !== undefined ? phone : user.phone,
+      city: city !== undefined ? city : user.city
     });
   } catch (error) {
     next(error);
@@ -215,6 +304,7 @@ const googleAuth = async (req, res, next) => {
       email: profile.email,
       role: profile.role,
       avatar: profile.avatar,
+      verification_status: profile.verification_status,
       token: data.session.access_token,
     });
   } catch (error) {
@@ -227,4 +317,5 @@ module.exports = {
   loginUser,
   getMe,
   googleAuth,
+  updateProfile
 };

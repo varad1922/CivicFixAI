@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useContext, useEffect } from 'react';
 import { AuthContext, AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import ReactGA from 'react-ga4';
 import Layout from './components/Layout';
@@ -13,6 +14,7 @@ import Home from './pages/Home';
 import CitizenDashboard from './pages/dashboards/CitizenDashboard';
 import AuthorityDashboard from './pages/dashboards/AuthorityDashboard';
 import AdminDashboard from './pages/dashboards/AdminDashboard';
+import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 import { Link } from 'react-router-dom';
 
@@ -62,36 +64,35 @@ function App() {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || 'your-google-client-id.apps.googleusercontent.com'}>
       <AuthProvider>
-        <Router>
-          <RouteTracker />
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/map" element={<MapPage />} />
-              <Route path="/issues/:id" element={<IssueDetail />} />
-              <Route path="/report" element={
-                <ProtectedRoute>
-                  <ReportIssue />
-                </ProtectedRoute>
-              } />
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <DashboardRouter />
-                </ProtectedRoute>
-              } />
-              <Route path="/profile" element={
-                <ProtectedRoute>
-                  <div className="max-w-4xl mx-auto mt-8 p-4">
-                    <h2 className="text-3xl font-bold text-deep-green mb-4">Profile</h2>
-                    <p>User profile settings.</p>
-                  </div>
-                </ProtectedRoute>
-              } />
-            </Routes>
-          </Layout>
-        </Router>
+        <SocketProvider>
+          <Router>
+            <RouteTracker />
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/map" element={<MapPage />} />
+                <Route path="/issues/:id" element={<IssueDetail />} />
+                <Route path="/report" element={
+                  <ProtectedRoute>
+                    <ReportIssue />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <DashboardRouter />
+                  </ProtectedRoute>
+                } />
+                <Route path="/profile" element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                } />
+              </Routes>
+            </Layout>
+          </Router>
+        </SocketProvider>
       </AuthProvider>
     </GoogleOAuthProvider>
   );

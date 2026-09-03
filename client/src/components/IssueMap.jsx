@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import axios from 'axios';
 import L from 'leaflet';
 import { Link } from 'react-router-dom';
+import { useSocket } from '../context/SocketContext';
 
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -59,6 +60,28 @@ const IssueMap = () => {
     };
     fetchIssues();
   }, []);
+
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewIssue = (issue) => {
+      setIssues((prev) => [...prev, issue]);
+    };
+
+    const handleIssueUpdate = (updatedIssue) => {
+      setIssues((prev) => prev.map(issue => issue._id === updatedIssue._id ? updatedIssue : issue));
+    };
+
+    socket.on('issue:created', handleNewIssue);
+    socket.on('issue:updated', handleIssueUpdate);
+
+    return () => {
+      socket.off('issue:created', handleNewIssue);
+      socket.off('issue:updated', handleIssueUpdate);
+    };
+  }, [socket]);
 
   useEffect(() => {
     if (!navigator.geolocation) {

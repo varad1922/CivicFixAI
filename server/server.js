@@ -3,13 +3,19 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const http = require('http');
 const { errorHandler } = require('./middleware/errorMiddleware');
+const { initSocket } = require('./services/socketService');
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
+
+// Initialize Socket.IO
+initSocket(server);
 
 // Middleware
 app.use(helmet());
@@ -44,6 +50,6 @@ app.get('/', (req, res) => {
 app.use(errorHandler);
 
 // Start Server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
