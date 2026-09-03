@@ -1,10 +1,10 @@
 const express = require('express');
-const cors = require('cors');
 const dotenv = require('dotenv');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const http = require('http');
 const path = require('path');
+const cors = require('cors');
 
 // Load environment variables from server/.env
 dotenv.config({
@@ -27,7 +27,11 @@ app.use(helmet());
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: [
+      'http://localhost:5173',
+      'https://civic-fix-ai-eosin.vercel.app',
+      process.env.CLIENT_URL
+    ].filter(Boolean),
     credentials: true,
   })
 );
