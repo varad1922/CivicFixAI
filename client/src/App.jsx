@@ -41,7 +41,6 @@ const DashboardRouter = () => {
   
   if (!user) return null;
   
-  // Later we can add switch case for 'authority' and 'admin'
   if (user.role === 'citizen') {
     return <CitizenDashboard />;
   }
@@ -54,8 +53,8 @@ const DashboardRouter = () => {
     return <AdminDashboard />;
   }
   
-  // Fallback for now
-  return <CitizenDashboard />;
+  // Fallback if role is invalid or not yet loaded correctly
+  return <div className="p-8 text-center text-ink/60">Invalid or missing account role. Please log in again.</div>;
 };
 
 // Dashboard routing logic

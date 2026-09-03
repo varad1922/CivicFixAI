@@ -24,7 +24,7 @@ const analyzeImageWithGemini = async (imageUrl) => {
     const mimeType = imageResp.headers.get('content-type') || 'image/jpeg';
 
     const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
         contents: [
           { text: prompt },
           { inlineData: { data: buffer.toString('base64'), mimeType } }
