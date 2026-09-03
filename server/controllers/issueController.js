@@ -262,7 +262,7 @@ const getIssues = async (req, res, next) => {
       .from('issues')
       .select(`
         *,
-        reportedBy:profiles(id, name, avatar),
+        reportedBy:profiles!issues_reported_by_fkey(id, name, avatar),
         images:issue_images(url, public_id)
       `)
       .order('created_at', { ascending: false });
@@ -286,7 +286,7 @@ const getMyIssues = async (req, res, next) => {
       .from('issues')
       .select(`
         *,
-        reportedBy:profiles(id, name, avatar),
+        reportedBy:profiles!issues_reported_by_fkey(id, name, avatar),
         images:issue_images(url, public_id)
       `)
       .eq('reported_by', req.user.id)
@@ -311,7 +311,7 @@ const getIssueById = async (req, res, next) => {
       .from('issues')
       .select(`
         *,
-        reportedBy:profiles(id, name, avatar),
+        reportedBy:profiles!issues_reported_by_fkey(id, name, avatar),
         images:issue_images(url, public_id),
         timeline:issue_timeline(*)
       `)
@@ -381,7 +381,7 @@ const getQueue = async (req, res, next) => {
       .from('issues')
       .select(`
         *,
-        reportedBy:profiles(id, name, avatar)
+        reportedBy:profiles!issues_reported_by_fkey(id, name, avatar)
       `)
       .order('severity', { ascending: false })
       .order('created_at', { ascending: false });

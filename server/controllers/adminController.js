@@ -90,12 +90,18 @@ const updateUserStatus = async (req, res, next) => {
     if (status === 'suspended') updateData.is_active = false;
     if (status === 'verified') updateData.is_active = true;
 
+    if (Object.keys(updateData).length === 0) {
+      return res.json({
+        message: 'No changes provided',
+        user: target
+      });
+    }
+
     const { data, error } = await supabase
       .from('profiles')
       .update(updateData)
       .eq('id', userId)
-      .select('id, name, email, role, verification_status, is_active')
-      .single();
+      .select('id, name, email, role, verification_status, is_active');
 
     if (error) {
       res.status(400);
@@ -104,7 +110,7 @@ const updateUserStatus = async (req, res, next) => {
 
     res.json({
       message: 'Account updated successfully',
-      user: data
+      user: data?.[0] || null
     });
   } catch (error) {
     next(error);
