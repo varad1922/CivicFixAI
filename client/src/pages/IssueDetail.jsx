@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSocket } from '../context/SocketContext';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
+import IssueStatusBadge from '../components/IssueStatusBadge';
+import IssueTimeline from '../components/IssueTimeline';
 
 import {
   MapContainer,
@@ -245,18 +247,9 @@ const IssueDetail = () => {
               </strong>
             </span>
 
-            <span>
+            <span className="flex items-center gap-2">
               Status:{' '}
-              <strong
-                className={
-                  issue.status === 'Resolved' ||
-                  issue.status === 'Closed'
-                    ? 'text-civic-green'
-                    : 'text-deep-green'
-                }
-              >
-                {issue.status}
-              </strong>
+              <IssueStatusBadge status={issue.status} />
             </span>
 
             <span>
@@ -315,15 +308,8 @@ const IssueDetail = () => {
               Current Status
             </h3>
 
-            <div
-              className={`inline-flex px-4 py-2 rounded-full font-bold text-sm ${
-                issue.status === 'Resolved' ||
-                issue.status === 'Closed'
-                  ? 'bg-civic-green/20 text-civic-green'
-                  : 'bg-deep-green/10 text-deep-green'
-              }`}
-            >
-              {issue.status}
+            <div className="mt-2">
+              <IssueStatusBadge status={issue.status} />
             </div>
 
             <p className="text-xs text-ink/60 mt-3">
@@ -366,47 +352,25 @@ const IssueDetail = () => {
           )}
 
           {/* TIMELINE */}
-          {issue.timeline?.length > 0 && (
-            <div className="bg-sand p-5 rounded-lg border border-deep-green/10">
-
-              <h3 className="font-bold text-deep-green mb-4">
-                Status Timeline
-              </h3>
-
-              <div className="space-y-4">
-
-                {issue.timeline.map(
-                  (entry, index) => (
-                    <div
-                      key={`${entry.timestamp}-${index}`}
-                      className="border-l-2 border-deep-green/20 pl-4"
-                    >
-
-                      <p className="font-semibold text-sm">
-                        {entry.status}
-                      </p>
-
-                      {entry.note && (
-                        <p className="text-xs text-ink/60 mt-1">
-                          {entry.note}
-                        </p>
-                      )}
-
-                      {entry.timestamp && (
-                        <p className="text-[11px] text-ink/50 mt-1">
-                          {new Date(
-                            entry.timestamp
-                          ).toLocaleString()}
-                        </p>
-                      )}
-
-                    </div>
-                  )
-                )}
-
+          <div className="bg-sand p-5 rounded-lg border border-deep-green/10">
+            <h3 className="font-bold text-deep-green mb-2">
+              Status Timeline
+            </h3>
+            <IssueTimeline currentStatus={issue.status} />
+            
+            {issue.timeline?.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-deep-green/10 space-y-4">
+                <h4 className="text-xs font-bold text-ink/50 uppercase tracking-wider mb-3">Activity Log</h4>
+                {issue.timeline.map((entry, index) => (
+                  <div key={`${entry.timestamp}-${index}`} className="border-l-2 border-deep-green/20 pl-4">
+                    <p className="font-semibold text-sm">{entry.status}</p>
+                    {entry.note && <p className="text-xs text-ink/60 mt-1">{entry.note}</p>}
+                    {entry.timestamp && <p className="text-[11px] text-ink/50 mt-1">{new Date(entry.timestamp).toLocaleString()}</p>}
+                  </div>
+                ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
         </div>
 

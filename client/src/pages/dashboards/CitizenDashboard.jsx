@@ -193,18 +193,18 @@ const CitizenDashboard = () => {
                      hover:-translate-y-1 hover:shadow-md
                      transition-all duration-200"
         >
-          <div className="p-3 bg-deep-green text-paper rounded-full">
+          <div className="p-3 bg-deep-green text-paper rounded-full shrink-0">
             <AlertTriangle size={24} />
           </div>
 
           <div>
-            <p className="text-ink/60 text-sm font-semibold uppercase tracking-wider">
+            <p className="flex items-center gap-1.5 text-ink/60 text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1">
               Total Reported
             </p>
-
-            <p className="text-3xl font-bold text-deep-green">
+            <p className="text-3xl font-bold text-deep-green leading-none">
               {issues.length}
             </p>
+            <p className="text-[10px] text-ink/50 mt-1">All your submitted issues</p>
           </div>
         </div>
 
@@ -216,18 +216,18 @@ const CitizenDashboard = () => {
                      hover:-translate-y-1 hover:shadow-md
                      transition-all duration-200"
         >
-          <div className="p-3 bg-amber text-paper rounded-full">
+          <div className="p-3 bg-amber text-paper rounded-full shrink-0">
             <Clock size={24} />
           </div>
 
           <div>
-            <p className="text-ink/60 text-sm font-semibold uppercase tracking-wider">
+            <p className="flex items-center gap-1.5 text-ink/60 text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1">
               Active Issues
             </p>
-
-            <p className="text-3xl font-bold text-deep-green">
+            <p className="text-3xl font-bold text-deep-green leading-none">
               {activeIssues.length}
             </p>
+            <p className="text-[10px] text-ink/50 mt-1">Currently being handled</p>
           </div>
         </div>
 
@@ -239,18 +239,18 @@ const CitizenDashboard = () => {
                      hover:-translate-y-1 hover:shadow-md
                      transition-all duration-200"
         >
-          <div className="p-3 bg-civic-green text-paper rounded-full">
+          <div className="p-3 bg-civic-green text-paper rounded-full shrink-0">
             <CheckCircle size={24} />
           </div>
 
           <div>
-            <p className="text-ink/60 text-sm font-semibold uppercase tracking-wider">
+            <p className="flex items-center gap-1.5 text-ink/60 text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1">
               Resolved
             </p>
-
-            <p className="text-3xl font-bold text-deep-green">
+            <p className="text-3xl font-bold text-deep-green leading-none">
               {resolvedIssues.length}
             </p>
+            <p className="text-[10px] text-ink/50 mt-1">Issues completed successfully</p>
           </div>
         </div>
       </div>

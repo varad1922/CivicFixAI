@@ -3,7 +3,8 @@ import { AuthContext } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { AlertCircle, Clock, CheckCircle, Search, PlusCircle, Map as MapIcon } from 'lucide-react';
+import { AlertCircle, Clock, CheckCircle, Search, PlusCircle, Map as MapIcon, Check } from 'lucide-react';
+import IssueStatusBadge from '../../components/IssueStatusBadge';
 
 const AuthorityDashboard = () => {
   const { user, token } = useContext(AuthContext);
@@ -90,21 +91,33 @@ const AuthorityDashboard = () => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-sand p-4 rounded shadow-sm border hover:-translate-y-1 hover:shadow-md transition-all duration-200 border-deep-green/10 flex flex-col items-center justify-center">
-          <p className="text-ink/60 text-[10px] md:text-xs font-semibold uppercase text-center">New Requests</p>
-          <p className="text-2xl font-bold text-deep-green">{newRequests.length}</p>
+        <div className="bg-sand p-4 rounded shadow-sm border hover:-translate-y-1 hover:shadow-md transition-all duration-200 border-deep-green/10 flex flex-col items-center justify-center text-center">
+          <div className="flex items-center gap-1.5 text-ink/60 text-[10px] md:text-xs font-semibold uppercase mb-1">
+            <AlertCircle size={14} /> New Requests
+          </div>
+          <p className="text-3xl font-bold text-deep-green">{newRequests.length}</p>
+          <p className="text-[10px] text-ink/50 mt-1">Awaiting assessment</p>
         </div>
-        <div className="bg-sand p-4 rounded shadow-sm border hover:-translate-y-1 hover:shadow-md transition-all duration-200 border-danger/30 flex flex-col items-center justify-center">
-          <p className="text-danger text-[10px] md:text-xs font-semibold uppercase text-center">High Priority</p>
-          <p className="text-2xl font-bold text-danger">{highPriority.length}</p>
+        <div className="bg-sand p-4 rounded shadow-sm border hover:-translate-y-1 hover:shadow-md transition-all duration-200 border-danger/30 flex flex-col items-center justify-center text-center">
+          <div className="flex items-center gap-1.5 text-danger text-[10px] md:text-xs font-semibold uppercase mb-1">
+            <AlertCircle size={14} /> High Priority
+          </div>
+          <p className="text-3xl font-bold text-danger">{highPriority.length}</p>
+          <p className="text-[10px] text-ink/50 mt-1">Needs urgent attention</p>
         </div>
-        <div className="bg-sand p-4 rounded shadow-sm border hover:-translate-y-1 hover:shadow-md transition-all duration-200 border-info-blue/30 flex flex-col items-center justify-center">
-          <p className="text-info-blue text-[10px] md:text-xs font-semibold uppercase text-center">In Progress</p>
-          <p className="text-2xl font-bold text-info-blue">{inProgress.length}</p>
+        <div className="bg-sand p-4 rounded shadow-sm border hover:-translate-y-1 hover:shadow-md transition-all duration-200 border-info-blue/30 flex flex-col items-center justify-center text-center">
+          <div className="flex items-center gap-1.5 text-info-blue text-[10px] md:text-xs font-semibold uppercase mb-1">
+            <Clock size={14} /> In Progress
+          </div>
+          <p className="text-3xl font-bold text-info-blue">{inProgress.length}</p>
+          <p className="text-[10px] text-ink/50 mt-1">Issues currently being handled</p>
         </div>
-        <div className="bg-sand p-4 rounded shadow-sm border hover:-translate-y-1 hover:shadow-md transition-all duration-200 border-civic-green/30 flex flex-col items-center justify-center">
-          <p className="text-civic-green text-[10px] md:text-xs font-semibold uppercase text-center">Resolved</p>
-          <p className="text-2xl font-bold text-civic-green">{resolved.length}</p>
+        <div className="bg-sand p-4 rounded shadow-sm border hover:-translate-y-1 hover:shadow-md transition-all duration-200 border-civic-green/30 flex flex-col items-center justify-center text-center">
+          <div className="flex items-center gap-1.5 text-civic-green text-[10px] md:text-xs font-semibold uppercase mb-1">
+            <CheckCircle size={14} /> Resolved
+          </div>
+          <p className="text-3xl font-bold text-civic-green">{resolved.length}</p>
+          <p className="text-[10px] text-ink/50 mt-1">Issues completed successfully</p>
         </div>
       </div>
 
@@ -147,11 +160,11 @@ const AuthorityDashboard = () => {
                       </span>
                       <span className="text-[10px] text-ink/60">{new Date(issue.createdAt).toLocaleDateString()}</span>
                     </div>
-                    <h3 className="font-bold text-sm truncate">{issue.title}</h3>
-                    <p className="text-xs text-ink/70 flex justify-between mt-2">
-                      <span>{issue.category}</span>
-                      <span className="font-semibold">{issue.status}</span>
-                    </p>
+                    <h3 className="font-bold text-sm truncate mb-2">{issue.title}</h3>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-xs text-ink/70">{issue.category}</span>
+                      <IssueStatusBadge status={issue.status} />
+                    </div>
                   </div>
                 ))
               )}
@@ -170,7 +183,8 @@ const AuthorityDashboard = () => {
               
               <div className="p-4 overflow-y-auto flex-grow">
                 <h3 className="text-xl font-bold mb-2">{selectedIssue.title}</h3>
-                <div className="flex gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <IssueStatusBadge status={selectedIssue.status} />
                   <span className="text-xs bg-sand text-deep-green px-2 py-1 rounded font-bold">{selectedIssue.category}</span>
                   <span className="text-xs bg-sand text-deep-green px-2 py-1 rounded font-bold">{selectedIssue.severity}</span>
                 </div>
@@ -186,22 +200,33 @@ const AuthorityDashboard = () => {
 
                 <div>
                   <h4 className="font-semibold text-sm mb-2 text-ink/70">Quick Actions</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button 
-                      onClick={() => updateStatus(selectedIssue._id, 'In Progress')}
-                      disabled={selectedIssue.status === 'In Progress'}
-                      className="bg-info-blue text-paper py-2 rounded text-sm font-bold disabled:opacity-50"
-                    >
-                      Mark In Progress
-                    </button>
-                    <button 
-                      onClick={() => updateStatus(selectedIssue._id, 'Resolved')}
-                      disabled={selectedIssue.status === 'Resolved'}
-                      className="bg-civic-green text-paper py-2 rounded text-sm font-bold disabled:opacity-50"
-                    >
-                      Mark Resolved
-                    </button>
-                    <Link to={`/issues/${selectedIssue._id}`} className="col-span-2 text-center py-2 border border-deep-green/20 rounded text-sm font-semibold hover:bg-sand/50">
+                  <div className="flex flex-col gap-2">
+                    {selectedIssue.status === 'Reported' && (
+                      <button 
+                        onClick={() => updateStatus(selectedIssue._id, 'In Progress')}
+                        className="w-full bg-info-blue text-paper py-3 rounded text-sm font-bold hover:bg-info-blue/90 shadow-sm"
+                      >
+                        Mark In Progress
+                      </button>
+                    )}
+                    
+                    {selectedIssue.status === 'In Progress' && (
+                      <button 
+                        onClick={() => updateStatus(selectedIssue._id, 'Resolved')}
+                        className="w-full bg-civic-green text-paper py-3 rounded text-sm font-bold hover:bg-civic-green/90 shadow-sm"
+                      >
+                        Mark Resolved
+                      </button>
+                    )}
+                    
+                    {(selectedIssue.status === 'Resolved' || selectedIssue.status === 'Closed') && (
+                      <div className="w-full bg-civic-green/10 text-civic-green border border-civic-green/20 py-3 rounded text-sm font-bold flex items-center justify-center gap-2">
+                        <Check size={18} />
+                        Resolved
+                      </div>
+                    )}
+
+                    <Link to={`/issues/${selectedIssue._id}`} className="w-full text-center py-3 border border-deep-green/20 rounded text-sm font-semibold hover:bg-sand/50 mt-2">
                       View Full Details
                     </Link>
                   </div>
