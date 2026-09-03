@@ -1,14 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useSocket } from '../context/SocketContext';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+
+import {
+  MapContainer,
+  TileLayer,
+  Marker
+} from 'react-leaflet';
+
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 delete L.Icon.Default.prototype._getIconUrl;
+
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
   iconUrl: markerIcon,
@@ -17,114 +26,390 @@ L.Icon.Default.mergeOptions({
 
 const IssueDetail = () => {
   const { id } = useParams();
+  const { socket } = useSocket();
+
   const [issue, setIssue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const apiUrl =
+    import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+  /*
+   * Fetch the authoritative issue from the backend.
+   */
+  const fetchIssue = useCallback(async () => {
+    if (!id) return;
+
+    try {
+      const response = await axios.get(
+        `${apiUrl}/issues/${id}`
+      );
+
+      setIssue(response.data);
+      setError(null);
+    } catch (requestError) {
+      console.error(
+        'Failed to fetch issue:',
+        requestError.response?.data || requestError.message
+      );
+
+      setError('Issue not found');
+    } finally {
+      setLoading(false);
+    }
+  }, [apiUrl, id]);
+
+  /*
+   * Initial issue load.
+   */
   useEffect(() => {
-    const fetchIssue = async () => {
-      try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/issues/${id}`);
-        setIssue(res.data);
-        setLoading(false);
-      } catch (err) {
-        setError('Issue not found');
-        setLoading(false);
-      }
-    };
     fetchIssue();
-  }, [id]);
+  }, [fetchIssue]);
+
+  /*
+   * REAL-TIME ISSUE STATUS
+   */
+  useEffect(() => {
+    if (!socket || !id) {
+      return undefined;
+    }
+
+    /*
+     * Subscribe to this particular issue.
+     */
+    socket.emit('subscribe_issue', id);
+
+    const handleIssueUpdated = (updatedIssue) => {
+      if (!updatedIssue?._id) {
+        return;
+      }
+
+      if (String(updatedIssue._id) !== String(id)) {
+        return;
+      }
+
+      console.log(
+        '[IssueDetail] Live update:',
+        updatedIssue.status
+      );
+
+      /*
+       * Immediately update the screen.
+       */
+      setIssue((currentIssue) => ({
+        ...currentIssue,
+        ...updatedIssue
+      }));
+
+      /*
+       * Refetch from DB so the screen contains the
+       * canonical server-side state.
+       */
+      fetchIssue();
+    };
+
+    const handleCitizenNotification = (notification) => {
+      const updatedIssue = notification?.issue;
+
+      if (!updatedIssue?._id) {
+        return;
+      }
+
+      if (String(updatedIssue._id) !== String(id)) {
+        return;
+      }
+
+      console.log(
+        '[IssueDetail] Citizen notification:',
+        updatedIssue.status
+      );
+
+      setIssue((currentIssue) => ({
+        ...currentIssue,
+        ...updatedIssue
+      }));
+
+      fetchIssue();
+    };
+
+    socket.on('issue:updated', handleIssueUpdated);
+
+    socket.on(
+      'notification:citizen',
+      handleCitizenNotification
+    );
+
+    return () => {
+      socket.off(
+        'issue:updated',
+        handleIssueUpdated
+      );
+
+      socket.off(
+        'notification:citizen',
+        handleCitizenNotification
+      );
+
+      socket.emit('unsubscribe_issue', id);
+    };
+  }, [socket, id, fetchIssue]);
 
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto mt-8 p-6 bg-paper rounded shadow-sm border border-deep-green/10 animate-pulse">
-        <div className="h-4 bg-sand rounded w-1/4 mb-6"></div>
+        <div className="h-4 bg-sand rounded w-1/4 mb-6" />
+
         <div className="flex flex-col md:flex-row gap-8">
+
           <div className="md:w-2/3 w-full">
-            <div className="h-8 bg-sand rounded w-3/4 mb-4"></div>
-            <div className="h-4 bg-sand rounded w-full mb-6"></div>
-            <div className="h-64 bg-sand rounded w-full mb-6"></div>
-            <div className="h-4 bg-sand rounded w-full mb-2"></div>
-            <div className="h-4 bg-sand rounded w-5/6"></div>
+            <div className="h-8 bg-sand rounded w-3/4 mb-4" />
+            <div className="h-4 bg-sand rounded w-full mb-6" />
+            <div className="h-64 bg-sand rounded w-full mb-6" />
+            <div className="h-4 bg-sand rounded w-full mb-2" />
+            <div className="h-4 bg-sand rounded w-5/6" />
           </div>
+
           <div className="md:w-1/3 w-full space-y-6">
-            <div className="h-48 bg-sand rounded w-full"></div>
-            <div className="h-20 bg-sand rounded w-full"></div>
+            <div className="h-48 bg-sand rounded w-full" />
+            <div className="h-20 bg-sand rounded w-full" />
           </div>
+
         </div>
       </div>
     );
   }
-  if (error) return <div className="text-center mt-12 text-danger">{error}</div>;
-  if (!issue) return null;
+
+  if (error) {
+    return (
+      <div className="text-center mt-12 text-danger">
+        {error}
+      </div>
+    );
+  }
+
+  if (!issue) {
+    return null;
+  }
+
+  const coordinates =
+    issue.location?.coordinates || [];
+
+  const lng = Number(coordinates[0]);
+  const lat = Number(coordinates[1]);
+
+  const hasValidLocation =
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180;
 
   return (
     <div className="max-w-4xl mx-auto mt-8 bg-paper text-ink p-6 rounded shadow-sm border border-deep-green/10">
+
       <div className="mb-4">
-        <Link to="/map" className="text-info-blue hover:underline">&larr; Back to Map</Link>
+        <Link
+          to="/map"
+          className="text-info-blue hover:underline"
+        >
+          &larr; Back to Map
+        </Link>
       </div>
-      
+
       <div className="flex flex-col md:flex-row gap-8">
+
         <div className="md:w-2/3">
-          <h1 className="text-3xl font-bold text-deep-green mb-2">{issue.title}</h1>
-          <div className="flex gap-4 mb-4 text-sm text-ink/80 border-b border-deep-green/20 pb-4">
-            <span className="font-semibold">{issue.category}</span>
-            <span>Severity: <strong className={issue.severity === 'Critical' ? 'text-danger' : 'text-orange'}>{issue.severity}</strong></span>
-            <span>Status: <strong>{issue.status}</strong></span>
-            <span>{new Date(issue.createdAt).toLocaleDateString()}</span>
+
+          <h1 className="text-3xl font-bold text-deep-green mb-2">
+            {issue.title}
+          </h1>
+
+          <div className="flex flex-wrap gap-4 mb-4 text-sm text-ink/80 border-b border-deep-green/20 pb-4">
+
+            <span className="font-semibold">
+              {issue.category}
+            </span>
+
+            <span>
+              Severity:{' '}
+              <strong
+                className={
+                  issue.severity === 'Critical'
+                    ? 'text-danger'
+                    : 'text-orange'
+                }
+              >
+                {issue.severity}
+              </strong>
+            </span>
+
+            <span>
+              Status:{' '}
+              <strong
+                className={
+                  issue.status === 'Resolved' ||
+                  issue.status === 'Closed'
+                    ? 'text-civic-green'
+                    : 'text-deep-green'
+                }
+              >
+                {issue.status}
+              </strong>
+            </span>
+
+            <span>
+              {new Date(
+                issue.createdAt
+              ).toLocaleDateString()}
+            </span>
+
           </div>
 
-          {issue.images && issue.images.length > 0 && (
-            <img src={issue.images[0].url} alt={issue.title} className="w-full h-auto max-h-96 object-cover rounded mb-6 shadow-sm" />
+          {issue.images?.length > 0 && (
+            <img
+              src={issue.images[0].url}
+              alt={issue.title}
+              className="w-full h-auto max-h-96 object-cover rounded mb-6 shadow-sm"
+            />
           )}
 
-          <h3 className="text-xl font-semibold mb-2">Description</h3>
-          <p className="whitespace-pre-wrap leading-relaxed">{issue.description}</p>
+          <h3 className="text-xl font-semibold mb-2">
+            Description
+          </h3>
 
-          {issue.aiAnalysis && issue.aiAnalysis.category && (
+          <p className="whitespace-pre-wrap leading-relaxed">
+            {issue.description}
+          </p>
+
+          {issue.aiAnalysis?.category && (
             <div className="mt-8 bg-sand/50 p-4 rounded border border-deep-green/10">
+
               <h4 className="font-bold text-deep-green mb-2 flex items-center gap-2">
-                <span>🤖</span> AI Analysis Summary
+                <span>🤖</span>
+                AI Analysis Summary
               </h4>
-              <p className="text-sm"><strong>Suggested Category:</strong> {issue.aiAnalysis.category}</p>
-              <p className="text-sm"><strong>Safety Impact:</strong> {issue.aiAnalysis.safetyImpact}</p>
+
+              <p className="text-sm">
+                <strong>Suggested Category:</strong>{' '}
+                {issue.aiAnalysis.category}
+              </p>
+
+              <p className="text-sm">
+                <strong>Safety Impact:</strong>{' '}
+                {issue.aiAnalysis.safetyImpact}
+              </p>
+
             </div>
           )}
+
         </div>
 
-        <div className="md:w-1/3">
-          <div className="bg-sand p-4 rounded shadow-sm mb-6">
-            <h3 className="font-bold text-deep-green mb-4">Location</h3>
-            {issue.location && issue.location.coordinates && (
-              <div className="h-64 w-full rounded overflow-hidden">
-                <MapContainer 
-                  center={[issue.location.coordinates[1], issue.location.coordinates[0]]} 
-                  zoom={15} 
-                  scrollWheelZoom={false} 
-                  className="h-full w-full"
-                  zoomControl={false}
-                >
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <Marker position={[issue.location.coordinates[1], issue.location.coordinates[0]]} />
-                </MapContainer>
-              </div>
-            )}
-          </div>
-          
-          <div className="bg-sand p-4 rounded shadow-sm">
-            <h3 className="font-bold text-deep-green mb-4">Reported By</h3>
-            <div className="flex items-center gap-3">
-              {issue.reportedBy?.avatar ? (
-                <img src={issue.reportedBy.avatar} alt="avatar" className="w-10 h-10 rounded-full" />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-deep-green text-paper flex items-center justify-center font-bold">
-                  {issue.reportedBy?.name?.charAt(0) || '?'}
-                </div>
-              )}
-              <span className="font-medium">{issue.reportedBy?.name || 'Anonymous User'}</span>
+        <div className="md:w-1/3 w-full space-y-6">
+
+          {/* STATUS */}
+          <div className="bg-sand p-5 rounded-lg border border-deep-green/10">
+
+            <h3 className="font-bold text-deep-green mb-3">
+              Current Status
+            </h3>
+
+            <div
+              className={`inline-flex px-4 py-2 rounded-full font-bold text-sm ${
+                issue.status === 'Resolved' ||
+                issue.status === 'Closed'
+                  ? 'bg-civic-green/20 text-civic-green'
+                  : 'bg-deep-green/10 text-deep-green'
+              }`}
+            >
+              {issue.status}
             </div>
+
+            <p className="text-xs text-ink/60 mt-3">
+              Status updates are received automatically.
+            </p>
+
           </div>
+
+          {/* LOCATION */}
+          {hasValidLocation && (
+            <div className="bg-paper rounded-lg border border-deep-green/10 overflow-hidden">
+
+              <div className="p-4">
+                <h3 className="font-bold text-deep-green">
+                  Location
+                </h3>
+
+                {issue.location?.address && (
+                  <p className="text-sm text-ink/70 mt-1">
+                    {issue.location.address}
+                  </p>
+                )}
+              </div>
+
+              <MapContainer
+                center={[lat, lng]}
+                zoom={15}
+                scrollWheelZoom={false}
+                className="h-56 w-full"
+              >
+                <TileLayer
+                  attribution="&copy; OpenStreetMap contributors"
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+
+                <Marker position={[lat, lng]} />
+              </MapContainer>
+
+            </div>
+          )}
+
+          {/* TIMELINE */}
+          {issue.timeline?.length > 0 && (
+            <div className="bg-sand p-5 rounded-lg border border-deep-green/10">
+
+              <h3 className="font-bold text-deep-green mb-4">
+                Status Timeline
+              </h3>
+
+              <div className="space-y-4">
+
+                {issue.timeline.map(
+                  (entry, index) => (
+                    <div
+                      key={`${entry.timestamp}-${index}`}
+                      className="border-l-2 border-deep-green/20 pl-4"
+                    >
+
+                      <p className="font-semibold text-sm">
+                        {entry.status}
+                      </p>
+
+                      {entry.note && (
+                        <p className="text-xs text-ink/60 mt-1">
+                          {entry.note}
+                        </p>
+                      )}
+
+                      {entry.timestamp && (
+                        <p className="text-[11px] text-ink/50 mt-1">
+                          {new Date(
+                            entry.timestamp
+                          ).toLocaleString()}
+                        </p>
+                      )}
+
+                    </div>
+                  )
+                )}
+
+              </div>
+            </div>
+          )}
+
         </div>
+
       </div>
     </div>
   );
