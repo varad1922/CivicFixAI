@@ -37,11 +37,27 @@ const AdminDashboard = () => {
         { status },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      // Refresh data
       await fetchAdminData();
     } catch (error) {
       console.error('Failed to update user status', error);
       alert('Failed to update user status.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDelete = async (userId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this user?')) return;
+    setActionLoading(userId);
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL}/admin/users/${userId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      await fetchAdminData();
+    } catch (error) {
+      console.error('Failed to delete user', error);
+      alert('Failed to delete user.');
     } finally {
       setActionLoading(null);
     }
@@ -306,6 +322,13 @@ const AdminDashboard = () => {
                              Unsuspend
                            </button>
                         )}
+                        <button 
+                          onClick={() => handleDelete(u._id)}
+                          disabled={actionLoading === u._id}
+                          className="px-2 py-1 bg-danger/10 text-danger rounded text-xs font-semibold disabled:opacity-50 ml-2 hover:bg-danger/20"
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))}

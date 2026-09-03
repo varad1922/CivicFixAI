@@ -12,7 +12,7 @@ const Home = () => {
           CivicFix AI empowers you to report local infrastructure problems directly to authorities. Using AI, we automatically categorize and prioritize issues for faster resolution.
         </p>
         <div className="flex flex-col sm:flex-row gap-4">
-          <Link to="/report" className="bg-orange text-paper px-8 py-4 rounded-lg text-lg font-bold hover:bg-orange/90 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+          <Link to="/report" className="bg-orange text-paper px-8 py-4 rounded-lg text-lg font-bold hover:bg-orange/90 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1 active:scale-95">
             Report an Issue
           </Link>
           <Link to="/map" className="bg-transparent border-2 border-paper text-paper px-8 py-4 rounded-lg text-lg font-bold hover:bg-paper hover:text-deep-green transition-all">

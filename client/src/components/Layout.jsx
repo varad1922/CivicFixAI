@@ -13,8 +13,8 @@ const Layout = ({ children }) => {
       return [
         { name: 'Home', path: '/', icon: <Home size={24} /> },
         { name: 'Map', path: '/map', icon: <MapIcon size={24} /> },
-        { name: 'Report Issue', path: '/report', icon: <PlusCircle size={24} /> },
-        ...(user ? [{ name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={24} /> }] : []),
+        { name: 'Report', path: '/report', icon: <PlusCircle size={24} /> },
+        ...(user ? [{ name: 'Activity', path: '/dashboard', icon: <LayoutDashboard size={24} /> }] : []),
         ...(user ? [{ name: 'Profile', path: '/profile', icon: <User size={24} /> }] : []),
       ];
     }
@@ -52,7 +52,6 @@ const Layout = ({ children }) => {
               location.pathname === item.path ? 'text-sand underline decoration-2 underline-offset-4' : ''
             }`}
           >
-            {item.name === 'Report' && item.icon}
             {item.name}
           </Link>
         ))}

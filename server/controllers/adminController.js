@@ -119,8 +119,28 @@ const updateUserStatus = async (req, res, next) => {
   }
 };
 
+// @desc    Delete user
+// @route   DELETE /api/admin/users/:id
+// @access  Private (Admin)
+const deleteUser = async (req, res, next) => {
+  try {
+    const userId = req.params.id;
+    const { error } = await supabase.auth.admin.deleteUser(userId);
+    
+    if (error) {
+      res.status(400);
+      throw new Error(error.message);
+    }
+    
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getStats,
   getUsers,
-  updateUserStatus
+  updateUserStatus,
+  deleteUser
 };

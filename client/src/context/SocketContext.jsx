@@ -11,6 +11,7 @@ export const useSocket = () => {
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const { token, user } = useContext(AuthContext);
 
   useEffect(() => {
@@ -34,6 +35,16 @@ export const SocketProvider = ({ children }) => {
         console.log('Socket disconnected');
       });
 
+      newSocket.on('notification:citizen', (data) => {
+        setNotifications(prev => [...prev, { id: Date.now(), msg: data.message }]);
+        setTimeout(() => setNotifications(prev => prev.slice(1)), 5000);
+      });
+
+      newSocket.on('notification:authority', (data) => {
+        setNotifications(prev => [...prev, { id: Date.now(), msg: data.message }]);
+        setTimeout(() => setNotifications(prev => prev.slice(1)), 5000);
+      });
+
       setSocket(newSocket);
 
       return () => {
@@ -51,6 +62,14 @@ export const SocketProvider = ({ children }) => {
   return (
     <SocketContext.Provider value={{ socket, connected }}>
       {children}
+      {/* Toast Notification Container */}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+        {notifications.map((note, idx) => (
+          <div key={note.id} className="bg-deep-green text-paper p-4 rounded-lg shadow-lg flex items-center justify-between border-l-4 border-civic-green animate-in slide-in-from-right-8 fade-in">
+            <span className="font-semibold text-sm">{note.msg}</span>
+          </div>
+        ))}
+      </div>
     </SocketContext.Provider>
   );
 };
