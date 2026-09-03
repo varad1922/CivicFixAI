@@ -145,9 +145,13 @@ const ReportIssue = () => {
       setLoading(false);
       nextStep();
     } catch (err) {
-      setError('AI analysis failed. You can retry or continue manually.');
+      setError('AI analysis unavailable.');
       setLoading(false);
-      nextStep();
+      // Wait a moment then automatically proceed to manual entry or just let them click continue
+      setTimeout(() => {
+        nextStep();
+        setError(null);
+      }, 1500);
     }
   };
 
@@ -306,7 +310,7 @@ const ReportIssue = () => {
                 Back
               </button>
               <button onClick={nextStep} className="w-full md:w-1/2 bg-paper border-2 border-deep-green text-deep-green px-6 py-4 rounded-lg text-lg font-bold hover:bg-sand/50 transition-colors">
-                Skip & Fill Manually
+                Continue manually
               </button>
             </div>
           </div>

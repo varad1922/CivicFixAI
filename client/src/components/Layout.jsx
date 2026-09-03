@@ -9,13 +9,21 @@ const Layout = ({ children }) => {
   const location = useLocation();
 
   const getNavItems = () => {
-    if (!user || user.role === 'citizen') {
+    if (!user) {
       return [
         { name: 'Home', path: '/', icon: <Home size={24} /> },
         { name: 'Map', path: '/map', icon: <MapIcon size={24} /> },
         { name: 'Report', path: '/report', icon: <PlusCircle size={24} /> },
-        ...(user ? [{ name: 'Activity', path: '/dashboard', icon: <LayoutDashboard size={24} /> }] : []),
-        ...(user ? [{ name: 'Profile', path: '/profile', icon: <User size={24} /> }] : []),
+      ];
+    }
+
+    if (user.role === 'citizen') {
+      return [
+        { name: 'Home', path: '/', icon: <Home size={24} /> },
+        { name: 'Map', path: '/map', icon: <MapIcon size={24} /> },
+        { name: 'Report', path: '/report', icon: <PlusCircle size={24} /> },
+        { name: 'Activity', path: '/dashboard', icon: <LayoutDashboard size={24} /> },
+        { name: 'Profile', path: '/profile', icon: <User size={24} /> },
       ];
     }
     
