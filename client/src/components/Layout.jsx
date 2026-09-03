@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { Home, Map as MapIcon, PlusCircle, LayoutDashboard, User } from 'lucide-react';
+import { Home, Map as MapIcon, FileText, LayoutDashboard, User } from 'lucide-react';
 import Footer from './Footer';
 
 const Layout = ({ children }) => {
@@ -13,7 +13,7 @@ const Layout = ({ children }) => {
       return [
         { name: 'Home', path: '/', icon: <Home size={24} /> },
         { name: 'Map', path: '/map', icon: <MapIcon size={24} /> },
-        { name: 'Report', path: '/report', icon: <PlusCircle size={24} /> },
+        { name: 'Report', path: '/report', icon: <FileText size={24} /> },
       ];
     }
 
@@ -21,7 +21,7 @@ const Layout = ({ children }) => {
       return [
         { name: 'Home', path: '/', icon: <Home size={24} /> },
         { name: 'Map', path: '/map', icon: <MapIcon size={24} /> },
-        { name: 'Report', path: '/report', icon: <PlusCircle size={24} /> },
+        { name: 'Report', path: '/report', icon: <FileText size={24} /> },
         { name: 'Activity', path: '/dashboard', icon: <LayoutDashboard size={24} /> },
         { name: 'Profile', path: '/profile', icon: <User size={24} /> },
       ];
@@ -30,6 +30,8 @@ const Layout = ({ children }) => {
     if (user.role === 'authority') {
       return [
         { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={24} /> },
+        { name: 'Map', path: '/map', icon: <MapIcon size={24} /> },
+        { name: 'Report', path: '/report', icon: <FileText size={24} /> },
         { name: 'Profile', path: '/profile', icon: <User size={24} /> },
       ];
     }

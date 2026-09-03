@@ -74,7 +74,7 @@ function App() {
                 <Route path="/map" element={<MapPage />} />
                 <Route path="/issues/:id" element={<IssueDetail />} />
                 <Route path="/report" element={
-                  <ProtectedRoute>
+                  <ProtectedRoute roles={['citizen', 'authority']}>
                     <ReportIssue />
                   </ProtectedRoute>
                 } />

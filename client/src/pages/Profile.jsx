@@ -188,7 +188,7 @@ const Profile = () => {
                     value={formData.city} 
                     onChange={e => setFormData({...formData, city: e.target.value})} 
                     className="w-full p-3 border border-deep-green/20 rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-deep-green/50" 
-                    placeholder="New York, NY"
+                    placeholder="Your city or locality"
                   />
                 </div>
               </div>

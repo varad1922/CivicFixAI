@@ -5,7 +5,7 @@ const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 
 router.post('/check-duplicates', protect, checkDuplicates);
-router.get('/queue', protect, authorize('authority', 'admin'), getQueue);
+router.get('/queue', protect, authorize('authority'), getQueue);
 
 router.route('/')
   .post(protect, createIssue)
@@ -16,6 +16,6 @@ router.get('/my-issues', protect, getMyIssues);
 router.route('/:id')
   .get(getIssueById);
 
-router.patch('/:id/status', protect, authorize('authority', 'admin'), updateStatus);
+router.patch('/:id/status', protect, authorize('authority'), updateStatus);
 
 module.exports = router;

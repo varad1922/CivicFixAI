@@ -41,6 +41,12 @@ const initSocket = (server) => {
       if (!profile) {
         return next(new Error('Authentication error: Profile not found'));
       }
+      if (!profile.is_active || profile.verification_status === 'suspended') {
+        return next(new Error('Authentication error: Account is inactive or suspended'));
+      }
+      if (profile.role === 'authority' && profile.verification_status !== 'verified') {
+        return next(new Error('Authentication error: Authority account is not verified'));
+      }
       
       socket.user = profile;
       next();

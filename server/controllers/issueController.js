@@ -2,7 +2,7 @@ const supabase = require('../config/supabase');
 const { logActivity } = require('../services/activityService');
 const socketService = require('../services/socketService');
 
-// Map Supabase rows to MongoDB-like JSON for the frontend
+// Map Supabase rows to the frontend contract
 const mapIssue = (issue) => {
   if (!issue) return null;
 
@@ -58,8 +58,54 @@ const categoryToDepartment = (category) => {
     'Traffic Signal Issue': 'Electrical Authority',
     'Public Property Damage': 'Parks Authority'
   };
+  return map[category] || 'General Civic Authority';
+};
 
-  return map[category] || 'Other';
+const findAppropriateAuthority = async (department, address = '') => {
+  const { data: authorities, error } = await supabase
+    .from('profiles')
+    .select('id, jurisdiction, created_at')
+    .eq('role', 'authority')
+    .eq('verification_status', 'verified')
+    .eq('is_active', true)
+    .eq('department', department)
+    .order('created_at', { ascending: true });
+
+  if (error) throw new Error(`Authority lookup failed: ${error.message}`);
+  if (!authorities?.length) return null;
+
+  const normalizedAddress = String(address || '').toLowerCase();
+  const ranked = authorities.map(authority => {
+    const jurisdiction = String(authority.jurisdiction || '').toLowerCase().trim();
+    let jurisdictionScore = 0;
+    if (jurisdiction && normalizedAddress) {
+      if (normalizedAddress === jurisdiction) jurisdictionScore = 3;
+      else if (normalizedAddress.includes(jurisdiction)) jurisdictionScore = 2;
+      else if (jurisdiction.includes(normalizedAddress)) jurisdictionScore = 1;
+    }
+    return { ...authority, jurisdictionScore };
+  });
+
+  // Prefer an authority whose declared jurisdiction appears in the report
+  // address. If no textual jurisdiction match exists, balance the workload
+  // across verified active authorities in the correct department.
+  const maxScore = Math.max(...ranked.map(a => a.jurisdictionScore));
+  const candidates = ranked.filter(a => a.jurisdictionScore === maxScore);
+  if (candidates.length === 1) return candidates[0].id;
+
+  const candidateIds = candidates.map(a => a.id);
+  const { data: activeIssues, error: loadError } = await supabase
+    .from('issues')
+    .select('assigned_authority_id')
+    .in('assigned_authority_id', candidateIds)
+    .not('status', 'in', '(\"Resolved\",\"Closed\")');
+
+  if (loadError) throw new Error(`Authority workload lookup failed: ${loadError.message}`);
+
+  const load = new Map(candidateIds.map(id => [id, 0]));
+  (activeIssues || []).forEach(issue => load.set(issue.assigned_authority_id, (load.get(issue.assigned_authority_id) || 0) + 1));
+  candidates.sort((a, b) => (load.get(a.id) || 0) - (load.get(b.id) || 0));
+  return candidates[0].id;
 };
 
 // @desc    Create new issue
@@ -77,13 +123,18 @@ const createIssue = async (req, res, next) => {
       aiAnalysis
     } = req.body;
 
+    const coordinates = location?.coordinates;
     if (
-      !title ||
-      !description ||
+      !title?.trim() ||
+      !description?.trim() ||
       !category ||
       !severity ||
-      !location ||
-      !location.coordinates
+      !Array.isArray(coordinates) ||
+      coordinates.length !== 2 ||
+      !Number.isFinite(Number(coordinates[0])) ||
+      !Number.isFinite(Number(coordinates[1])) ||
+      Number(coordinates[0]) < -180 || Number(coordinates[0]) > 180 ||
+      Number(coordinates[1]) < -90 || Number(coordinates[1]) > 90
     ) {
       res.status(400);
       throw new Error(
@@ -91,37 +142,14 @@ const createIssue = async (req, res, next) => {
       );
     }
 
-    // Determine Appropriate Authority
     const department = categoryToDepartment(category);
+    const assignedAuthorityId = await findAppropriateAuthority(department, location.address);
 
-    // Simple jurisdiction matching based on address for now.
-    // In a real app, this would use PostGIS polygons.
-    // Here we just look for an authority with the right department.
-    let assignedAuthorityId = null;
-
-    const { data: authorities } = await supabase
-      .from('profiles')
-      .select('id, jurisdiction')
-      .eq('role', 'authority')
-      .eq('verification_status', 'verified')
-      .eq('is_active', true)
-      .eq('department', department);
-
-    if (authorities && authorities.length > 0) {
-      // Find one whose jurisdiction matches the address,
-      // or just pick the first one
-      const matched = authorities.find(
-        a =>
-          location.address &&
-          a.jurisdiction &&
-          location.address
-            .toLowerCase()
-            .includes(a.jurisdiction.toLowerCase())
-      );
-
-      assignedAuthorityId = matched
-        ? matched.id
-        : authorities[0].id;
+    // Do not create operational complaints that nobody can own. Admins verify
+    // authorities; they are not a forwarding queue.
+    if (!assignedAuthorityId) {
+      res.status(503);
+      throw new Error(`No verified active ${department} is available for this report yet.`);
     }
 
     const { data: issue, error } = await supabase
@@ -131,9 +159,9 @@ const createIssue = async (req, res, next) => {
         description,
         category,
         severity,
-        location: `SRID=4326;POINT(${location.coordinates[0]} ${location.coordinates[1]})`,
-        lng: location.coordinates[0],
-        lat: location.coordinates[1],
+        location: `SRID=4326;POINT(${Number(coordinates[0])} ${Number(coordinates[1])})`,
+        lng: Number(coordinates[0]),
+        lat: Number(coordinates[1]),
         address: location.address || '',
         reported_by: req.user.id,
         assigned_authority_id: assignedAuthorityId,
@@ -188,7 +216,7 @@ const createIssue = async (req, res, next) => {
 
     // Real-time events
     socketService.emitToAll(
-      'issue:new',
+      'issue:map:new',
       formattedIssue
     );
 
@@ -346,7 +374,7 @@ const checkDuplicates = async (req, res, next) => {
 
 // @desc    Get queue for authority
 // @route   GET /api/issues/queue
-// @access  Private (Authority/Admin)
+// @access  Private (Authority)
 const getQueue = async (req, res, next) => {
   try {
     let query = supabase
@@ -358,12 +386,9 @@ const getQueue = async (req, res, next) => {
       .order('severity', { ascending: false })
       .order('created_at', { ascending: false });
 
-    // If user is authority, only show their assigned issues or unassigned
-    if (req.user.role === 'authority') {
-      query = query.or(
-        `assigned_authority_id.eq.${req.user.id},assigned_authority_id.is.null`
-      );
-    }
+    // Authorities only see work explicitly assigned to them. There is no
+    // admin-forwarding or shared unassigned queue in the operational flow.
+    query = query.eq('assigned_authority_id', req.user.id);
 
     const { data, error } = await query;
 
@@ -379,7 +404,7 @@ const getQueue = async (req, res, next) => {
 
 // @desc    Update issue status
 // @route   PATCH /api/issues/:id/status
-// @access  Private (Authority/Admin)
+// @access  Private (Authority)
 const updateStatus = async (req, res, next) => {
   try {
     const { status, note } = req.body;
@@ -398,6 +423,24 @@ const updateStatus = async (req, res, next) => {
     if (fetchError || !issue) {
       res.status(404);
       throw new Error('Issue not found');
+    }
+
+    if (issue.assigned_authority_id !== req.user.id) {
+      res.status(403);
+      throw new Error('You can only update issues assigned to your authority account.');
+    }
+
+    const allowedTransitions = {
+      'Reported': ['Under Review', 'Assigned', 'In Progress', 'Resolved'],
+      'Under Review': ['Assigned', 'In Progress', 'Resolved'],
+      'Assigned': ['In Progress', 'Resolved'],
+      'In Progress': ['Resolved', 'Closed'],
+      'Resolved': ['Closed'],
+      'Closed': []
+    };
+    if (!allowedTransitions[issue.status]?.includes(status)) {
+      res.status(400);
+      throw new Error(`Invalid status transition from ${issue.status} to ${status}`);
     }
 
     const { error: updateError } = await supabase

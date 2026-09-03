@@ -105,53 +105,64 @@ const ReportIssue = () => {
   const analyzeIssue = async () => {
     setLoading(true);
     setError(null);
+
     try {
-      // 1. Upload Image
-      const uploadData = new FormData();
-      uploadData.append('image', formData.image);
-      
-      const uploadRes = await axios.post(`${import.meta.env.VITE_API_URL}/upload`, uploadData, {
-        headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${token}` }
-      });
+      if (!formData.image) throw new Error('Please add an issue photo first.');
+      if (!formData.location?.coordinates) throw new Error('Please select the issue location first.');
 
-      const imageUrl = uploadRes.data.url;
-
-      // 2. Analyze Image
-      const aiRes = await axios.post(`${import.meta.env.VITE_API_URL}/ai/analyze-issue`, { imageUrl }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      setFormData({
-        ...formData,
-        aiAnalysis: aiRes.data,
-        title: aiRes.data.suggestedTitle || '',
-        description: aiRes.data.suggestedDescription || '',
-        category: aiRes.data.category || 'Other',
-        severity: aiRes.data.severity || 'Medium',
-        image: uploadRes.data // save the uploaded details instead of file
-      });
-      
-      // Check duplicates
-      try {
-        const dupRes = await axios.post(`${import.meta.env.VITE_API_URL}/issues/check-duplicates`, {
-          coordinates: formData.location.coordinates,
-          category: aiRes.data.category || 'Other'
-        }, { headers: { Authorization: `Bearer ${token}` } });
-        setDuplicates(dupRes.data);
-      } catch (e) {
-        console.error('Duplicate check failed', e);
+      // Upload first. The uploaded object is retained even if Gemini is unavailable,
+      // so the user can still submit the report manually without uploading twice.
+      let uploadedImage = formData.image;
+      if (formData.image instanceof File) {
+        const uploadData = new FormData();
+        uploadData.append('image', formData.image);
+        const uploadRes = await axios.post(`${import.meta.env.VITE_API_URL}/upload`, uploadData, {
+          headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${token}` }
+        });
+        uploadedImage = uploadRes.data;
+        setFormData(prev => ({ ...prev, image: uploadedImage }));
       }
-      
+
+      try {
+        const aiRes = await axios.post(
+          `${import.meta.env.VITE_API_URL}/ai/analyze-issue`,
+          { imageUrl: uploadedImage.url },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const analysis = aiRes.data;
+        setFormData(prev => ({
+          ...prev,
+          image: uploadedImage,
+          aiAnalysis: analysis,
+          title: analysis.suggestedTitle || prev.title,
+          description: analysis.suggestedDescription || prev.description,
+          category: analysis.category || prev.category,
+          severity: analysis.severity || prev.severity
+        }));
+
+        try {
+          const dupRes = await axios.post(
+            `${import.meta.env.VITE_API_URL}/issues/check-duplicates`,
+            { coordinates: formData.location.coordinates, category: analysis.category || 'Other' },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          setDuplicates(dupRes.data || []);
+        } catch (duplicateError) {
+          console.warn('Duplicate check unavailable:', duplicateError.response?.data?.message || duplicateError.message);
+        }
+      } catch (aiError) {
+        // AI is assistive, never a prerequisite for filing a civic report.
+        console.warn('AI analysis unavailable:', aiError.response?.data?.message || aiError.message);
+        setFormData(prev => ({ ...prev, image: uploadedImage, aiAnalysis: null }));
+        setError('AI analysis is unavailable right now. You can continue manually and still submit the report.');
+      }
+
       setLoading(false);
       nextStep();
     } catch (err) {
-      setError('AI analysis unavailable.');
+      setError(err.response?.data?.message || err.message || 'Unable to prepare the report.');
       setLoading(false);
-      // Wait a moment then automatically proceed to manual entry or just let them click continue
-      setTimeout(() => {
-        nextStep();
-        setError(null);
-      }, 1500);
     }
   };
 
@@ -267,7 +278,7 @@ const ReportIssue = () => {
               <div className="border border-deep-green/20 p-2 rounded-lg bg-sand shadow-inner animate-in fade-in zoom-in-95 duration-300">
                 <p className="text-sm font-semibold mb-2 text-deep-green">Tap on the map to pinpoint the issue</p>
                 <div className="h-64 w-full rounded overflow-hidden relative z-0">
-                  <MapContainer center={[0, 0]} zoom={2} scrollWheelZoom={true} className="h-full w-full">
+                  <MapContainer center={[20, 0]} zoom={2} scrollWheelZoom={true} className="h-full w-full">
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                     <LocationPicker position={manualPosition} setPosition={setManualPosition} />
                   </MapContainer>
@@ -345,7 +356,7 @@ const ReportIssue = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-bold text-deep-green mb-1">Title</label>
-              <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-3 border border-deep-green/20 rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-deep-green/50" placeholder="E.g., Large pothole on Main St" />
+              <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-3 border border-deep-green/20 rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-deep-green/50" placeholder="E.g., Large pothole near the main gate" />
             </div>
             
             <div>

@@ -59,7 +59,7 @@ const Register = () => {
   };
 
   const handleGoogleSuccess = async (credentialResponse) => {
-    const success = await googleLogin(credentialResponse.credential);
+    const success = await googleLogin(credentialResponse.credential, activeTab);
     if (success) {
       navigate('/dashboard');
     }
@@ -88,14 +88,16 @@ const Register = () => {
         {error && <div className="bg-danger text-paper p-3 rounded mb-4 text-center">{error}</div>}
         {passwordError && <div className="bg-danger text-paper p-3 rounded mb-4 text-center">{passwordError}</div>}
         
-        <div className="flex justify-center mb-6">
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => {
-              setError('Google registration failed');
-            }}
-          />
-        </div>
+        {activeTab === 'citizen' ? (
+          <div className="flex justify-center mb-6">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError('Google registration failed')}
+            />
+          </div>
+        ) : (
+          <div className="mb-6 p-3 rounded-lg bg-info-blue/10 text-info-blue text-sm text-center">Authority registration uses email so department and jurisdiction can be verified.</div>
+        )}
 
         <div className="relative flex py-2 items-center mb-4">
           <div className="flex-grow border-t border-deep-green/20"></div>
@@ -177,6 +179,7 @@ const Register = () => {
                   <option value="Electrical Authority">Electrical Authority</option>
                   <option value="Water Authority">Water Authority</option>
                   <option value="Parks Authority">Parks Authority</option>
+                  <option value="General Civic Authority">General Civic Authority</option>
                 </select>
               </div>
               <div>
