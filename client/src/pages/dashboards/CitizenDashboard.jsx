@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { PlusCircle, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
@@ -25,6 +26,22 @@ const CitizenDashboard = () => {
     };
     fetchMyIssues();
   }, [token]);
+
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleIssueUpdate = (updatedIssue) => {
+      setIssues((prev) => prev.map(issue => issue._id === updatedIssue._id ? updatedIssue : issue));
+    };
+
+    socket.on('issue:updated', handleIssueUpdate);
+
+    return () => {
+      socket.off('issue:updated', handleIssueUpdate);
+    };
+  }, [socket]);
 
   const activeIssues = issues.filter(i => i.status !== 'Resolved' && i.status !== 'Closed');
   const resolvedIssues = issues.filter(i => i.status === 'Resolved' || i.status === 'Closed');

@@ -1,13 +1,37 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow
+});
+
+const LocationPicker = ({ position, setPosition }) => {
+  useMapEvents({
+    click(e) {
+      setPosition([e.latlng.lat, e.latlng.lng]);
+    },
+  });
+  return position ? <Marker position={position} /> : null;
+};
 
 const ReportIssue = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [duplicates, setDuplicates] = useState([]);
+  const [manualMapOpen, setManualMapOpen] = useState(false);
+  const [manualPosition, setManualPosition] = useState(null);
   const navigate = useNavigate();
   const { token } = useContext(AuthContext);
 
@@ -48,17 +72,34 @@ const ReportIssue = () => {
           ...formData,
           location: {
             coordinates: [position.coords.longitude, position.coords.latitude],
-            address: '' // could reverse geocode here
+            address: '' 
           }
         });
         setLoading(false);
         nextStep();
       },
       () => {
-        setError('Unable to retrieve your location');
+        setError('Unable to retrieve your location. Please select it manually on the map.');
         setLoading(false);
+        setManualMapOpen(true);
       }
     );
+  };
+
+  const handleManualLocationConfirm = () => {
+    if (!manualPosition) {
+      setError('Please tap on the map to select a location');
+      return;
+    }
+    setFormData({
+      ...formData,
+      location: {
+        coordinates: [manualPosition[1], manualPosition[0]],
+        address: ''
+      }
+    });
+    setManualMapOpen(false);
+    nextStep();
   };
 
   const analyzeIssue = async () => {
@@ -106,7 +147,7 @@ const ReportIssue = () => {
     } catch (err) {
       setError('AI analysis failed. You can retry or continue manually.');
       setLoading(false);
-      // Don't block the flow entirely, just show the error.
+      nextStep();
     }
   };
 
@@ -114,12 +155,26 @@ const ReportIssue = () => {
     setLoading(true);
     setError(null);
     try {
+      let finalImage = formData.image;
+      
+      // If image is a File (has no url), we need to upload it now
+      if (finalImage && !finalImage.url && finalImage instanceof File) {
+        const uploadData = new FormData();
+        uploadData.append('image', finalImage);
+        
+        const uploadRes = await axios.post(`${import.meta.env.VITE_API_URL}/upload`, uploadData, {
+          headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${token}` }
+        });
+        finalImage = uploadRes.data;
+        setFormData(prev => ({ ...prev, image: finalImage }));
+      }
+
       const issueData = {
         title: formData.title,
         description: formData.description,
         category: formData.category,
         severity: formData.severity,
-        images: formData.image?.url ? [formData.image] : [],
+        images: finalImage?.url ? [finalImage] : [],
         location: formData.location,
         aiAnalysis: formData.aiAnalysis
       };
@@ -197,6 +252,28 @@ const ReportIssue = () => {
                 'Use My Current Location'
               )}
             </button>
+
+            {!manualMapOpen && (
+              <button onClick={() => setManualMapOpen(true)} className="w-full bg-paper border-2 border-deep-green text-deep-green px-6 py-4 rounded-lg text-lg font-bold hover:bg-sand/50 transition-colors shadow-sm">
+                Select Location Manually
+              </button>
+            )}
+
+            {manualMapOpen && (
+              <div className="border border-deep-green/20 p-2 rounded-lg bg-sand shadow-inner animate-in fade-in zoom-in-95 duration-300">
+                <p className="text-sm font-semibold mb-2 text-deep-green">Tap on the map to pinpoint the issue</p>
+                <div className="h-64 w-full rounded overflow-hidden relative z-0">
+                  <MapContainer center={[0, 0]} zoom={2} scrollWheelZoom={true} className="h-full w-full">
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <LocationPicker position={manualPosition} setPosition={setManualPosition} />
+                  </MapContainer>
+                </div>
+                <button onClick={handleManualLocationConfirm} className="w-full bg-civic-green text-paper px-4 py-3 rounded-lg font-bold hover:bg-civic-green/90 mt-2 shadow-sm">
+                  Confirm Selected Location
+                </button>
+              </div>
+            )}
+
             {formData.location && (
               <button onClick={nextStep} className="w-full bg-orange text-paper px-6 py-4 rounded-lg text-lg font-bold hover:bg-orange/90 shadow-md">
                 Skip (Already Located)

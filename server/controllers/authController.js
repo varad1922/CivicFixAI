@@ -104,7 +104,7 @@ const registerUser = async (req, res, next) => {
 // @access  Public
 const loginUser = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, requestedRole } = req.body;
 
     if (!email || !password) {
       res.status(400);
@@ -130,6 +130,11 @@ const loginUser = async (req, res, next) => {
     if (!profile || !profile.is_active) {
       res.status(401);
       throw new Error('Account is deactivated or not found');
+    }
+
+    if (requestedRole && profile.role !== requestedRole) {
+      res.status(403);
+      throw new Error(`Access denied. Please log in as a ${profile.role}.`);
     }
 
     // Check authority verification

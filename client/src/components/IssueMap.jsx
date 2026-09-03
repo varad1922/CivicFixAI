@@ -120,7 +120,8 @@ const IssueMap = () => {
     );
   };
 
-  const defaultCenter = [40.7128, -74.0060]; // Fallback NY
+  const defaultCenter = [0, 0]; // Neutral global fallback
+  const defaultZoom = userLocation || issues.length > 0 ? 13 : 2;
   
   // Decide the center
   const center = userLocation || (issues.length > 0 ? [issues[0].location.coordinates[1], issues[0].location.coordinates[0]] : defaultCenter);
@@ -145,7 +146,7 @@ const IssueMap = () => {
       <div className="h-[500px] md:h-[600px] w-full rounded overflow-hidden shadow-sm border border-deep-green/10 relative z-0">
         <MapContainer 
           center={center} 
-          zoom={13} 
+          zoom={defaultZoom} 
           scrollWheelZoom={true} 
           className="h-full w-full"
         >
