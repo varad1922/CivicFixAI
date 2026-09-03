@@ -16,9 +16,19 @@ const analyzeImageWithGemini = async (imageUrl) => {
       Return only valid JSON.
     `;
     
+    // We need to fetch the image and pass it as inlineData, or if it's a public URL, we might need to fetch it first.
+    // To be safe, we'll fetch the image as a buffer and pass it as inlineData.
+    const imageResp = await fetch(imageUrl);
+    const arrayBuffer = await imageResp.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const mimeType = imageResp.headers.get('content-type') || 'image/jpeg';
+
     const response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
-        contents: prompt,
+        model: 'gemini-1.5-flash',
+        contents: [
+          { text: prompt },
+          { inlineData: { data: buffer.toString('base64'), mimeType } }
+        ],
         config: {
           responseMimeType: 'application/json'
         }

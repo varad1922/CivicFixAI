@@ -19,6 +19,19 @@ const getStats = async (req, res, next) => {
       
     const pendingIssues = totalIssues - resolvedIssues;
 
+    const { count: authoritiesCount } = await supabase.from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'authority');
+
+    const { count: citizensCount } = await supabase.from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'citizen');
+
+    const { count: pendingVerifications } = await supabase.from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'authority')
+      .eq('verification_status', 'pending');
+
     const { data: trendsData } = await supabase.rpc('get_category_trends');
     const categoryTrends = (trendsData || []).map(t => ({
        _id: t.category,
@@ -31,6 +44,9 @@ const getStats = async (req, res, next) => {
     res.json({
       totalUsers: totalUsers || 0,
       activeUsers: activeUsers || 0,
+      citizens: citizensCount || 0,
+      authorities: authoritiesCount || 0,
+      pendingVerifications: pendingVerifications || 0,
       totalIssues: totalIssues || 0,
       resolvedIssues: resolvedIssues || 0,
       pendingIssues: pendingIssues || 0,
@@ -62,6 +78,7 @@ const getUsers = async (req, res, next) => {
       role: u.role,
       avatar: u.avatar,
       authProvider: u.auth_provider,
+      verificationStatus: u.verification_status,
       isActive: u.is_active,
       lastLogin: u.last_login,
       lastActive: u.last_active,
@@ -74,7 +91,36 @@ const getUsers = async (req, res, next) => {
   }
 };
 
+// @desc    Update user verification status
+// @route   PATCH /api/admin/users/:id/status
+// @access  Private (Admin)
+const updateUserStatus = async (req, res, next) => {
+  try {
+    const { status, isActive } = req.body;
+    const userId = req.params.id;
+    
+    const updateData = {};
+    if (status !== undefined) updateData.verification_status = status;
+    if (isActive !== undefined) updateData.is_active = isActive;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(updateData)
+      .eq('id', userId);
+
+    if (error) {
+      res.status(400);
+      throw new Error(error.message);
+    }
+
+    res.json({ message: 'User updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getStats,
-  getUsers
+  getUsers,
+  updateUserStatus
 };

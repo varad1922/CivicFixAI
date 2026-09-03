@@ -1,5 +1,6 @@
 const supabase = require('../config/supabase');
 const { logActivity } = require('../services/activityService');
+const socketService = require('../services/socketService');
 
 // Map Supabase rows to MongoDB-like JSON for the frontend
 const mapIssue = (issue) => {
@@ -94,7 +95,17 @@ const createIssue = async (req, res, next) => {
 
     // Send back formatted response
     issue.images = images || [];
-    res.status(201).json(mapIssue(issue));
+    const formattedIssue = mapIssue(issue);
+    
+    // Real-time events
+    socketService.emitToAll('issue:created', formattedIssue);
+    socketService.emitToAuthorities('notification:authority', {
+      type: 'NEW_ISSUE',
+      issue: formattedIssue,
+      message: `New issue reported: ${title}`
+    });
+
+    res.status(201).json(formattedIssue);
   } catch (error) {
     next(error);
   }
@@ -272,6 +283,15 @@ const updateStatus = async (req, res, next) => {
     
     // Return the updated issue mapped
     const updatedIssue = mapIssue({ ...issue, status });
+    
+    // Real-time events
+    socketService.emitToAll('issue:updated', updatedIssue);
+    socketService.emitToUser(issue.reported_by, 'notification:citizen', {
+      type: 'STATUS_UPDATED',
+      issue: updatedIssue,
+      message: `Your issue "${issue.title}" status changed to ${status}`
+    });
+
     res.json(updatedIssue);
   } catch (error) {
     next(error);

@@ -32,7 +32,12 @@ const protect = async (req, res, next) => {
         throw new Error('Not authorized, account is inactive');
       }
 
-      req.user = profile;
+      // Merge user_metadata phone and city if they exist
+      req.user = { 
+        ...profile, 
+        phone: user.user_metadata?.phone || '', 
+        city: user.user_metadata?.city || '' 
+      };
       
       // We map _id to id for backward compatibility
       req.user._id = profile.id;

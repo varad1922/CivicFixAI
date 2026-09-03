@@ -102,8 +102,25 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const updateProfile = async (profileData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await axios.patch(`${API_URL}profile`, profileData);
+      if (response.data) {
+        setUser(response.data);
+      }
+      setLoading(false);
+      return true;
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+      setLoading(false);
+      return false;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, error, register, login, googleLogin, logout, setError }}>
+    <AuthContext.Provider value={{ user, token, loading, error, register, login, googleLogin, logout, updateProfile, setError }}>
       {children}
     </AuthContext.Provider>
   );

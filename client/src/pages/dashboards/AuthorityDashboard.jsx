@@ -1,11 +1,13 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { AlertCircle, Clock, CheckCircle, Search, Filter } from 'lucide-react';
 
 const AuthorityDashboard = () => {
   const { user, token } = useContext(AuthContext);
+  const { socket } = useSocket();
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIssue, setSelectedIssue] = useState(null); // For mobile detail view
@@ -26,6 +28,29 @@ const AuthorityDashboard = () => {
   useEffect(() => {
     fetchQueue();
   }, [token]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewIssue = (issue) => {
+      setQueue((prev) => [issue, ...prev]);
+    };
+
+    const handleIssueUpdate = (updatedIssue) => {
+      setQueue((prev) => prev.map(issue => issue._id === updatedIssue._id ? updatedIssue : issue));
+      if (selectedIssue && selectedIssue._id === updatedIssue._id) {
+        setSelectedIssue(updatedIssue);
+      }
+    };
+
+    socket.on('issue:created', handleNewIssue);
+    socket.on('issue:updated', handleIssueUpdate);
+
+    return () => {
+      socket.off('issue:created', handleNewIssue);
+      socket.off('issue:updated', handleIssueUpdate);
+    };
+  }, [socket, selectedIssue]);
 
   const updateStatus = async (id, status) => {
     try {
