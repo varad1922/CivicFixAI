@@ -20,6 +20,7 @@ const mapIssue = (issue) => {
     },
     images: issue.images || [],
     reportedBy: issue.reportedBy ? { _id: issue.reportedBy.id, name: issue.reportedBy.name, avatar: issue.reportedBy.avatar } : issue.reported_by,
+    assignedAuthority: issue.assigned_authority_id,
     aiAnalysis: {
       category: issue.ai_category,
       severity: issue.ai_severity,
@@ -35,6 +36,24 @@ const mapIssue = (issue) => {
       note: t.note
     }))
   };
+};
+
+const socketService = require('../services/socketService');
+
+// Map Category to Department
+const categoryToDepartment = (category) => {
+  const map = {
+    'Pothole': 'Road Authority',
+    'Damaged Road': 'Road Authority',
+    'Garbage Accumulation': 'Sanitation Authority',
+    'Illegal Dumping': 'Sanitation Authority',
+    'Water Leakage': 'Water Authority',
+    'Drainage Issue': 'Water Authority',
+    'Broken Streetlight': 'Electrical Authority',
+    'Traffic Signal Issue': 'Electrical Authority',
+    'Public Property Damage': 'Parks Authority' // Simple mapping
+  };
+  return map[category] || 'Other';
 };
 
 // @desc    Create new issue
@@ -57,6 +76,26 @@ const createIssue = async (req, res, next) => {
       throw new Error('Please provide all required fields including location coordinates');
     }
 
+    // Determine Appropriate Authority
+    const department = categoryToDepartment(category);
+    // Simple jurisdiction matching based on address for now.
+    // In a real app, this would use PostGIS polygons.
+    // Here we just look for an authority with the right department.
+    let assignedAuthorityId = null;
+    const { data: authorities } = await supabase
+      .from('profiles')
+      .select('id, jurisdiction')
+      .eq('role', 'authority')
+      .eq('verification_status', 'verified')
+      .eq('is_active', true)
+      .eq('department', department);
+
+    if (authorities && authorities.length > 0) {
+      // Find one whose jurisdiction matches the address, or just pick the first one
+      const matched = authorities.find(a => location.address && location.address.toLowerCase().includes(a.jurisdiction.toLowerCase()));
+      assignedAuthorityId = matched ? matched.id : authorities[0].id;
+    }
+
     const { data: issue, error } = await supabase.from('issues').insert({
       title,
       description,
@@ -67,6 +106,7 @@ const createIssue = async (req, res, next) => {
       lat: location.coordinates[1],
       address: location.address || '',
       reported_by: req.user.id,
+      assigned_authority_id: assignedAuthorityId,
       ai_category: aiAnalysis?.category,
       ai_severity: aiAnalysis?.severity,
       ai_confidence: aiAnalysis?.confidence,
@@ -99,11 +139,21 @@ const createIssue = async (req, res, next) => {
     
     // Real-time events
     socketService.emitToAll('issue:created', formattedIssue);
-    socketService.emitToAuthorities('notification:authority', {
-      type: 'NEW_ISSUE',
-      issue: formattedIssue,
-      message: `New issue reported: ${title}`
-    });
+    
+    if (assignedAuthorityId) {
+      socketService.emitToUser(assignedAuthorityId, 'issue:assigned', formattedIssue);
+      socketService.emitToUser(assignedAuthorityId, 'notification:authority', {
+        type: 'NEW_ISSUE',
+        issue: formattedIssue,
+        message: `New issue assigned to you: ${title}`
+      });
+    } else {
+      socketService.emitToAuthorities('notification:authority', {
+        type: 'UNASSIGNED_ISSUE',
+        issue: formattedIssue,
+        message: `New unassigned issue reported: ${title}`
+      });
+    }
 
     res.status(201).json(formattedIssue);
   } catch (error) {
@@ -217,20 +267,26 @@ const checkDuplicates = async (req, res, next) => {
   }
 };
 
-// @desc    Get queue for authority (simplified queue)
+// @desc    Get queue for authority
 // @route   GET /api/issues/queue
 // @access  Private (Authority/Admin)
 const getQueue = async (req, res, next) => {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('issues')
       .select(`
         *,
         reportedBy:profiles(id, name, avatar)
       `)
-      .neq('status', 'Closed')
       .order('severity', { ascending: false })
       .order('created_at', { ascending: false });
+
+    // If user is authority, only show their assigned issues or unassigned
+    if (req.user.role === 'authority') {
+      query = query.or(`assigned_authority_id.eq.${req.user.id},assigned_authority_id.is.null`);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw new Error(error.message);
 

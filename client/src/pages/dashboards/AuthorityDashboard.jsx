@@ -44,10 +44,12 @@ const AuthorityDashboard = () => {
     };
 
     socket.on('issue:created', handleNewIssue);
+    socket.on('issue:assigned', handleNewIssue);
     socket.on('issue:updated', handleIssueUpdate);
 
     return () => {
       socket.off('issue:created', handleNewIssue);
+      socket.off('issue:assigned', handleNewIssue);
       socket.off('issue:updated', handleIssueUpdate);
     };
   }, [socket, selectedIssue]);
@@ -66,23 +68,34 @@ const AuthorityDashboard = () => {
     }
   };
 
-  const highPriority = queue.filter(i => i.severity === 'Critical' || i.severity === 'High');
+  const newRequests = queue.filter(i => i.status === 'Reported');
+  const highPriority = queue.filter(i => (i.severity === 'Critical' || i.severity === 'High') && i.status !== 'Resolved' && i.status !== 'Closed');
+  const inProgress = queue.filter(i => i.status === 'In Progress');
+  const resolved = queue.filter(i => i.status === 'Resolved' || i.status === 'Closed');
 
   return (
     <div className="max-w-7xl mx-auto w-full relative">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-deep-green">Authority Dashboard</h1>
-        <p className="text-ink/70">Issue Queue & Management</p>
+        <h1 className="text-3xl font-bold text-deep-green">Civic Operations Center</h1>
+        <p className="text-ink/70">Incoming Requests & Assigned Work</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-sand p-4 rounded shadow-sm border border-deep-green/10">
-          <p className="text-ink/60 text-xs font-semibold uppercase">Pending</p>
-          <p className="text-2xl font-bold text-deep-green">{queue.length}</p>
+        <div className="bg-sand p-4 rounded shadow-sm border border-deep-green/10 flex flex-col items-center justify-center">
+          <p className="text-ink/60 text-[10px] md:text-xs font-semibold uppercase text-center">New Requests</p>
+          <p className="text-2xl font-bold text-deep-green">{newRequests.length}</p>
         </div>
-        <div className="bg-sand p-4 rounded shadow-sm border border-danger/30">
-          <p className="text-danger text-xs font-semibold uppercase">High Priority</p>
+        <div className="bg-sand p-4 rounded shadow-sm border border-danger/30 flex flex-col items-center justify-center">
+          <p className="text-danger text-[10px] md:text-xs font-semibold uppercase text-center">High Priority</p>
           <p className="text-2xl font-bold text-danger">{highPriority.length}</p>
+        </div>
+        <div className="bg-sand p-4 rounded shadow-sm border border-info-blue/30 flex flex-col items-center justify-center">
+          <p className="text-info-blue text-[10px] md:text-xs font-semibold uppercase text-center">In Progress</p>
+          <p className="text-2xl font-bold text-info-blue">{inProgress.length}</p>
+        </div>
+        <div className="bg-sand p-4 rounded shadow-sm border border-civic-green/30 flex flex-col items-center justify-center">
+          <p className="text-civic-green text-[10px] md:text-xs font-semibold uppercase text-center">Resolved</p>
+          <p className="text-2xl font-bold text-civic-green">{resolved.length}</p>
         </div>
       </div>
 
@@ -91,7 +104,7 @@ const AuthorityDashboard = () => {
         <div className={`w-full ${selectedIssue ? 'hidden lg:block lg:w-1/2' : 'lg:w-1/2'}`}>
           <div className="bg-paper rounded shadow-sm border border-deep-green/10 overflow-hidden flex flex-col h-[70vh]">
             <div className="p-4 bg-sand border-b border-deep-green/10 flex justify-between items-center">
-              <h2 className="font-bold text-deep-green">Active Queue</h2>
+              <h2 className="font-bold text-deep-green">Assigned Work Queue</h2>
               <div className="flex gap-2 text-ink/60">
                 <Search size={18} />
                 <Filter size={18} />

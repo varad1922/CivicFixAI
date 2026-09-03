@@ -9,11 +9,13 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
+    department: '',
+    jurisdiction: ''
   });
   const [passwordError, setPasswordError] = useState('');
   const [activeTab, setActiveTab] = useState('citizen');
 
-  const { name, email, password, confirmPassword } = formData;
+  const { name, email, password, confirmPassword, department, jurisdiction } = formData;
   const { register, googleLogin, error, setError, user } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -40,7 +42,17 @@ const Register = () => {
       return;
     }
     
-    const success = await register({ name, email, password, role: activeTab });
+    const payload = { name, email, password, role: activeTab };
+    if (activeTab === 'authority') {
+      if (!department || !jurisdiction) {
+        setPasswordError('Department and Jurisdiction are required');
+        return;
+      }
+      payload.department = department;
+      payload.jurisdiction = jurisdiction;
+    }
+    
+    const success = await register(payload);
     if (success) {
       navigate('/dashboard');
     }
@@ -146,6 +158,43 @@ const Register = () => {
               placeholder="Confirm your password"
             />
           </div>
+
+          {activeTab === 'authority' && (
+            <>
+              <div>
+                <label className="block text-sm font-semibold mb-1" htmlFor="department">Department</label>
+                <select
+                  id="department"
+                  name="department"
+                  value={department}
+                  onChange={onChange}
+                  required
+                  className="w-full p-2 border border-deep-green/30 rounded focus:outline-none focus:border-deep-green bg-paper"
+                >
+                  <option value="" disabled>Select Department</option>
+                  <option value="Road Authority">Road Authority</option>
+                  <option value="Sanitation Authority">Sanitation Authority</option>
+                  <option value="Electrical Authority">Electrical Authority</option>
+                  <option value="Water Authority">Water Authority</option>
+                  <option value="Parks Authority">Parks Authority</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1" htmlFor="jurisdiction">Jurisdiction</label>
+                <input
+                  type="text"
+                  id="jurisdiction"
+                  name="jurisdiction"
+                  value={jurisdiction}
+                  onChange={onChange}
+                  required
+                  className="w-full p-2 border border-deep-green/30 rounded focus:outline-none focus:border-deep-green bg-paper"
+                  placeholder="e.g. Pune Zone 3"
+                />
+              </div>
+            </>
+          )}
+
           <button
             type="submit"
             className="w-full bg-deep-green text-paper py-2 rounded font-semibold hover:bg-civic-green transition-colors"

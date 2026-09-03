@@ -8,13 +8,35 @@ const Layout = ({ children }) => {
   const { user, logout } = useContext(AuthContext);
   const location = useLocation();
 
-  const navItems = [
-    { name: 'Home', path: '/', icon: <Home size={24} /> },
-    { name: 'Map', path: '/map', icon: <MapIcon size={24} /> },
-    { name: 'Report', path: '/report', icon: <PlusCircle size={28} className="text-orange" /> },
-    ...(user ? [{ name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={24} /> }] : []),
-    ...(user ? [{ name: 'Profile', path: '/profile', icon: <User size={24} /> }] : []),
-  ];
+  const getNavItems = () => {
+    if (!user || user.role === 'citizen') {
+      return [
+        { name: 'Home', path: '/', icon: <Home size={24} /> },
+        { name: 'Map', path: '/map', icon: <MapIcon size={24} /> },
+        { name: 'Report Issue', path: '/report', icon: <PlusCircle size={24} /> },
+        ...(user ? [{ name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={24} /> }] : []),
+        ...(user ? [{ name: 'Profile', path: '/profile', icon: <User size={24} /> }] : []),
+      ];
+    }
+    
+    if (user.role === 'authority') {
+      return [
+        { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={24} /> },
+        { name: 'Profile', path: '/profile', icon: <User size={24} /> },
+      ];
+    }
+    
+    if (user.role === 'admin') {
+      return [
+        { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={24} /> },
+        { name: 'Profile', path: '/profile', icon: <User size={24} /> },
+      ];
+    }
+    
+    return [];
+  };
+
+  const navItems = getNavItems();
 
   const NavigationDesktop = () => (
     <header className="hidden md:flex bg-deep-green text-paper p-4 justify-between items-center shadow-sm">

@@ -6,11 +6,18 @@ const { logActivity } = require('../services/activityService');
 // @access  Public
 const registerUser = async (req, res, next) => {
   try {
-    const { name, email, password, role = 'citizen' } = req.body;
+    const { name, email, password, role = 'citizen', department, jurisdiction } = req.body;
 
     if (!name || !email || !password) {
       res.status(400);
       throw new Error('Please add all fields (name, email, password)');
+    }
+
+    if (role === 'authority') {
+      if (!department || !jurisdiction) {
+        res.status(400);
+        throw new Error('Department and jurisdiction are required for authority registration');
+      }
     }
 
     if (role === 'admin') {
@@ -38,16 +45,23 @@ const registerUser = async (req, res, next) => {
       throw new Error(authError.message);
     }
 
+    const profileData = {
+      id: authData.user.id,
+      name,
+      email: email.toLowerCase(),
+      role,
+      verification_status
+    };
+
+    if (role === 'authority') {
+      profileData.department = department;
+      profileData.jurisdiction = jurisdiction;
+    }
+
     // Insert into profiles
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .insert({
-         id: authData.user.id,
-         name,
-         email: email.toLowerCase(),
-         role,
-         verification_status
-      })
+      .insert(profileData)
       .select()
       .single();
 
@@ -76,6 +90,8 @@ const registerUser = async (req, res, next) => {
       role: profile.role,
       avatar: profile.avatar,
       verification_status: profile.verification_status,
+      department: profile.department,
+      jurisdiction: profile.jurisdiction,
       token: sessionData.session.access_token,
     });
   } catch (error) {
