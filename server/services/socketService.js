@@ -74,10 +74,58 @@ const initSocket = (server) => {
     });
     
     // Allow users to explicitly subscribe to specific issues
-    socket.on('subscribe_issue', (issueId) => {
-      socket.join(`issue:${issueId}`);
-      console.log(`User ${socket.user.id} subscribed to issue ${issueId}`);
-    });
+    socket.on('subscribe_issue', async (issueId) => {
+  try {
+    if (!issueId) return;
+
+    const { data: issue, error } = await supabase
+      .from('issues')
+      .select('id, reported_by, assigned_authority_id')
+      .eq('id', issueId)
+      .single();
+
+    if (error || !issue) {
+      return;
+    }
+
+    const isCitizen =
+      issue.reported_by === socket.user.id;
+
+    const isAssignedAuthority =
+      issue.assigned_authority_id === socket.user.id;
+
+    const isAdmin =
+      socket.user.role === 'admin';
+
+    /*
+     * Only the reporting citizen,
+     * assigned authority, or admin
+     * can subscribe to the issue.
+     */
+    if (
+      !isCitizen &&
+      !isAssignedAuthority &&
+      !isAdmin
+    ) {
+      console.warn(
+        `Unauthorized issue subscription: ${socket.user.id}`
+      );
+
+      return;
+    }
+
+    socket.join(`issue:${issueId}`);
+
+    console.log(
+      `User ${socket.user.id} subscribed to issue ${issueId}`
+    );
+  } catch (error) {
+    console.error(
+      'Issue subscription error:',
+      error.message
+    );
+  }
+});
     
     socket.on('unsubscribe_issue', (issueId) => {
       socket.leave(`issue:${issueId}`);

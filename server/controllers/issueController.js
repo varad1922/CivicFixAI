@@ -414,7 +414,13 @@ const updateStatus = async (req, res, next) => {
       throw new Error('Status is required');
     }
 
-    const { data: issue, error: fetchError } = await supabase
+    /*
+     * Get the existing issue.
+     */
+    const {
+      data: issue,
+      error: fetchError
+    } = await supabase
       .from('issues')
       .select('*')
       .eq('id', req.params.id)
@@ -425,72 +431,216 @@ const updateStatus = async (req, res, next) => {
       throw new Error('Issue not found');
     }
 
-    if (issue.assigned_authority_id !== req.user.id) {
+    /*
+     * SECURITY:
+     * Only the authority assigned to this issue
+     * can update its status.
+     */
+    if (
+      issue.assigned_authority_id !==
+      req.user.id
+    ) {
       res.status(403);
-      throw new Error('You can only update issues assigned to your authority account.');
+      throw new Error(
+        'You can only update issues assigned to your authority account.'
+      );
     }
 
+    /*
+     * Valid status transitions.
+     */
     const allowedTransitions = {
-      'Reported': ['Under Review', 'Assigned', 'In Progress', 'Resolved'],
-      'Under Review': ['Assigned', 'In Progress', 'Resolved'],
-      'Assigned': ['In Progress', 'Resolved'],
-      'In Progress': ['Resolved', 'Closed'],
-      'Resolved': ['Closed'],
-      'Closed': []
+      Reported: [
+        'Under Review',
+        'Assigned',
+        'In Progress',
+        'Resolved'
+      ],
+
+      'Under Review': [
+        'Assigned',
+        'In Progress',
+        'Resolved'
+      ],
+
+      Assigned: [
+        'In Progress',
+        'Resolved'
+      ],
+
+      'In Progress': [
+        'Resolved',
+        'Closed'
+      ],
+
+      Resolved: [
+        'Closed'
+      ],
+
+      Closed: []
     };
-    if (!allowedTransitions[issue.status]?.includes(status)) {
+
+    if (
+      !allowedTransitions[
+        issue.status
+      ]?.includes(status)
+    ) {
       res.status(400);
-      throw new Error(`Invalid status transition from ${issue.status} to ${status}`);
+
+      throw new Error(
+        `Invalid status transition from ${issue.status} to ${status}`
+      );
     }
 
-    const { error: updateError } = await supabase
+    /*
+     * Update the database FIRST.
+     */
+    const {
+      data: updatedRow,
+      error: updateError
+    } = await supabase
       .from('issues')
-      .update({ status })
-      .eq('id', req.params.id);
+      .update({
+        status
+      })
+      .eq('id', req.params.id)
+      .eq(
+        'assigned_authority_id',
+        req.user.id
+      )
+      .select('*')
+      .single();
 
     if (updateError) {
-      throw new Error(updateError.message);
+      throw new Error(
+        `Failed to update issue status: ${updateError.message}`
+      );
     }
 
-    await supabase.from('issue_timeline').insert({
-      issue_id: req.params.id,
-      status,
-      user_id: req.user.id,
-      note: note || `Status updated to ${status}`
-    });
+    if (!updatedRow) {
+      res.status(404);
 
-    if (status === 'Resolved' || status === 'Closed') {
+      throw new Error(
+        'Issue could not be updated'
+      );
+    }
+
+    /*
+     * Add timeline entry.
+     */
+    const {
+      error: timelineError
+    } = await supabase
+      .from('issue_timeline')
+      .insert({
+        issue_id: req.params.id,
+        status,
+        user_id: req.user.id,
+        note:
+          note ||
+          `Status updated to ${status}`
+      });
+
+    if (timelineError) {
+      console.error(
+        'Timeline insert failed:',
+        timelineError.message
+      );
+    }
+
+    /*
+     * Activity log.
+     */
+    if (
+      status === 'Resolved' ||
+      status === 'Closed'
+    ) {
       await logActivity(
         'ISSUE_VERIFIED',
         req.user.id,
         req.params.id,
-        { status }
+        {
+          status
+        }
       );
     }
 
-    // Return the updated issue mapped
+    /*
+     * Build canonical issue response.
+     */
     const updatedIssue = mapIssue({
-      ...issue,
-      status
+      ...updatedRow,
+      images: issue.images || []
     });
 
-    // Real-time events
+    console.log(
+      `[Issue] ${req.params.id}: ${issue.status} → ${status}`
+    );
+
+    console.log(
+      `[Issue] Reporting citizen: ${issue.reported_by}`
+    );
+
+    console.log(
+      `[Issue] Assigned authority: ${req.user.id}`
+    );
+
+    /*
+     * =====================================================
+     * REAL-TIME EVENTS
+     * =====================================================
+     */
+
+    /*
+     * 1. Update maps / clients watching all issues.
+     */
     socketService.emitToAll(
       'issue:updated',
       updatedIssue
     );
 
-    socketService.emitToUser(
-      issue.reported_by,
-      'notification:citizen',
-      {
-        type: 'STATUS_UPDATED',
-        issue: updatedIssue,
-        message: `Your issue "${issue.title}" status changed to ${status}`
-      }
+    /*
+     * 2. Send specifically to the reporting citizen.
+     *
+     * This is the IMPORTANT part.
+     */
+    if (issue.reported_by) {
+      socketService.emitToUser(
+        issue.reported_by,
+        'issue:updated',
+        updatedIssue
+      );
+
+      /*
+       * Citizen notification.
+       */
+      socketService.emitToUser(
+        issue.reported_by,
+        'notification:citizen',
+        {
+          type: 'STATUS_UPDATED',
+          issue: updatedIssue,
+          message:
+            `Your issue "${issue.title}" ` +
+            `status changed to ${status}`
+        }
+      );
+    }
+
+    /*
+     * 3. Send to clients subscribed to this issue.
+     */
+    socketService.emitToIssueSubscribers(
+      req.params.id,
+      'issue:updated',
+      updatedIssue
     );
 
+    /*
+     * Return the actual updated issue.
+     */
     res.json(updatedIssue);
+
   } catch (error) {
     next(error);
   }
