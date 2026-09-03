@@ -302,6 +302,51 @@ const getMyIssues = async (req, res, next) => {
   }
 };
 
+// @desc    Get issues for map rendering
+// @route   GET /api/issues/map
+// @access  Private (Role-aware)
+const getMapIssues = async (req, res, next) => {
+  try {
+    let query = supabase
+      .from('issues')
+      .select(`
+        *,
+        reportedBy:profiles!issues_reported_by_fkey(id, name, avatar),
+        images:issue_images(url, public_id)
+      `)
+      .not('lat', 'is', null)
+      .not('lng', 'is', null)
+      .gte('lat', -90)
+      .lte('lat', 90)
+      .gte('lng', -180)
+      .lte('lng', 180)
+      .order('created_at', { ascending: false });
+
+    // Role-based visibility
+    if (req.user.role === 'citizen') {
+      // Citizens see their own and public non-closed issues
+      // To simplify for this civic platform, citizens can see all non-closed public reports
+      query = query.neq('status', 'Closed');
+    } else if (req.user.role === 'authority') {
+      // Authorities see all issues, or just their department.
+      // Keeping it broad for now so they have situational awareness.
+      query = query.neq('status', 'Closed');
+    } else if (req.user.role === 'admin') {
+      // Admins see everything
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    res.json(data.map(mapIssue));
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Get issue by ID
 // @route   GET /api/issues/:id
 // @access  Public
@@ -650,6 +695,7 @@ module.exports = {
   createIssue,
   getIssues,
   getMyIssues,
+  getMapIssues,
   getIssueById,
   checkDuplicates,
   getQueue,

@@ -5,6 +5,8 @@ import axios from 'axios';
 import L from 'leaflet';
 import { Link } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
+import { AuthContext } from '../context/AuthContext';
+import { useContext } from 'react';
 
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -28,6 +30,33 @@ const userIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
+// Helper for Status Marker Icons
+const getStatusIcon = (status) => {
+  let color = '#f97316'; // orange for Reported
+  if (status === 'In Progress' || status === 'Under Review' || status === 'Assigned') {
+    color = '#3b82f6'; // blue for active
+  } else if (status === 'Resolved' || status === 'Closed') {
+    color = '#10b981'; // green for resolved
+  }
+  
+  return new L.DivIcon({
+    className: 'custom-status-marker',
+    html: `
+      <div style="
+        background-color: ${color};
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      "></div>
+    `,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -12]
+  });
+};
+
 // Component to programmatically center the map
 const MapCenterer = ({ center }) => {
   const map = useMap();
@@ -47,10 +76,14 @@ const IssueMap = () => {
   const [locationStatus, setLocationStatus] = useState('Finding your location...');
   const [locationError, setLocationError] = useState(false);
 
+  const { token } = useContext(AuthContext);
+
   useEffect(() => {
     const fetchIssues = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/issues`);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/issues/map`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         setIssues(res.data);
       } catch (err) {
         console.error('Failed to fetch issues', err);
@@ -58,8 +91,8 @@ const IssueMap = () => {
         setLoadingIssues(false);
       }
     };
-    fetchIssues();
-  }, []);
+    if (token) fetchIssues();
+  }, [token]);
 
   const { socket } = useSocket();
 
@@ -67,11 +100,14 @@ const IssueMap = () => {
     if (!socket) return;
 
     const handleNewIssue = (issue) => {
-      setIssues((prev) => [...prev, issue]);
+      setIssues((prev) => {
+        if (prev.some(i => i._id === issue._id)) return prev;
+        return [...prev, issue];
+      });
     };
 
     const handleIssueUpdate = (updatedIssue) => {
-      setIssues((prev) => prev.map(issue => issue._id === updatedIssue._id ? updatedIssue : issue));
+      setIssues((prev) => prev.map(issue => issue._id === updatedIssue._id ? { ...issue, ...updatedIssue } : issue));
     };
 
     socket.on('issue:map:new', handleNewIssue);
@@ -142,6 +178,12 @@ const IssueMap = () => {
         </div>
       )}
       
+      <div className="flex flex-wrap gap-2 sm:gap-4 mb-4 text-xs sm:text-sm px-2">
+        <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#f97316]"></span> Reported</div>
+        <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#3b82f6]"></span> In Progress</div>
+        <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#10b981]"></span> Resolved</div>
+        <div className="flex items-center gap-1.5"><span className="w-3 h-4 bg-blue-500 clip-path-pin rounded-sm"></span> You</div>
+      </div>
       
       <div className="h-[500px] md:h-[600px] w-full rounded overflow-hidden shadow-sm border border-deep-green/10 relative z-0 bg-sand flex items-center justify-center text-ink/60 font-semibold">
         {center ? (
@@ -170,12 +212,20 @@ const IssueMap = () => {
                 <Marker 
                   key={issue._id} 
                   position={[issue.location.coordinates[1], issue.location.coordinates[0]]}
+                  icon={getStatusIcon(issue.status)}
                 >
                   <Popup>
-                    <div className="text-ink">
-                      <h3 className="font-bold text-deep-green">{issue.title}</h3>
-                      <p className="text-sm my-1">{issue.category} • <span className={`font-semibold ${issue.severity === 'Critical' ? 'text-danger' : 'text-orange'}`}>{issue.severity}</span></p>
-                      <Link to={`/issues/${issue._id}`} className="text-info-blue hover:underline text-sm">View Details</Link>
+                    <div className="text-ink w-48">
+                      <h3 className="font-bold text-deep-green truncate">{issue.title}</h3>
+                      <p className="text-sm my-1">{issue.category}</p>
+                      <p className="text-xs font-semibold mb-2" style={{
+                        color: issue.status === 'Resolved' || issue.status === 'Closed' ? '#10b981' : 
+                               (issue.status === 'Reported' ? '#f97316' : '#3b82f6')
+                      }}>
+                        ● {issue.status.toUpperCase()}
+                      </p>
+                      <p className="text-xs text-ink/60 mb-2">Reported: {new Date(issue.createdAt).toLocaleDateString()}</p>
+                      <Link to={`/issues/${issue._id}`} className="text-info-blue hover:underline text-sm font-semibold">View Details</Link>
                     </div>
                   </Popup>
                 </Marker>
