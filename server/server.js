@@ -17,7 +17,7 @@ const { initSocket } = require('./services/socketService');
 const app = express();
 const server = http.createServer(app);
 
-const PORT = process.env.PORT || 5000;
+
 
 // Initialize Socket.IO
 initSocket(server);
@@ -59,7 +59,7 @@ app.get('/', (req, res) => {
 // Error Middleware
 app.use(errorHandler);
 
-// Start Server
-server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server is running on port ${PORT} (0.0.0.0)`);
 });
