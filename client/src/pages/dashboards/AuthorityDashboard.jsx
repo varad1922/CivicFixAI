@@ -3,7 +3,7 @@ import { AuthContext } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { AlertCircle, Clock, CheckCircle, Search, Filter } from 'lucide-react';
+import { AlertCircle, Clock, CheckCircle, Search, PlusCircle, Map as MapIcon } from 'lucide-react';
 
 const AuthorityDashboard = () => {
   const { user, token } = useContext(AuthContext);
@@ -11,6 +11,8 @@ const AuthorityDashboard = () => {
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIssue, setSelectedIssue] = useState(null); // For mobile detail view
+  const [search, setSearch] = useState('');
+  const [queueFilter, setQueueFilter] = useState('all');
 
   const fetchQueue = async () => {
     try {
@@ -38,21 +40,17 @@ const AuthorityDashboard = () => {
 
     const handleIssueUpdate = (updatedIssue) => {
       setQueue((prev) => prev.map(issue => issue._id === updatedIssue._id ? updatedIssue : issue));
-      if (selectedIssue && selectedIssue._id === updatedIssue._id) {
-        setSelectedIssue(updatedIssue);
-      }
+      setSelectedIssue(prev => prev?._id === updatedIssue._id ? updatedIssue : prev);
     };
 
-    socket.on('issue:created', handleNewIssue);
     socket.on('issue:assigned', handleNewIssue);
     socket.on('issue:updated', handleIssueUpdate);
 
     return () => {
-      socket.off('issue:created', handleNewIssue);
       socket.off('issue:assigned', handleNewIssue);
       socket.off('issue:updated', handleIssueUpdate);
     };
-  }, [socket, selectedIssue]);
+  }, [socket]);
 
   const updateStatus = async (id, status) => {
     try {
@@ -72,28 +70,39 @@ const AuthorityDashboard = () => {
   const highPriority = queue.filter(i => (i.severity === 'Critical' || i.severity === 'High') && i.status !== 'Resolved' && i.status !== 'Closed');
   const inProgress = queue.filter(i => i.status === 'In Progress');
   const resolved = queue.filter(i => i.status === 'Resolved' || i.status === 'Closed');
+  const visibleQueue = queue.filter(issue => {
+    const matchesSearch = !search || `${issue.title} ${issue.category} ${issue.description}`.toLowerCase().includes(search.toLowerCase());
+    const matchesFilter = queueFilter === 'all' || (queueFilter === 'new' && issue.status === 'Reported') || (queueFilter === 'high' && ['High', 'Critical'].includes(issue.severity)) || (queueFilter === 'progress' && issue.status === 'In Progress') || (queueFilter === 'resolved' && ['Resolved', 'Closed'].includes(issue.status));
+    return matchesSearch && matchesFilter;
+  });
 
   return (
     <div className="max-w-7xl mx-auto w-full relative">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-deep-green">Civic Operations Center</h1>
-        <p className="text-ink/70">Incoming Requests & Assigned Work</p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-deep-green">Civic Operations Center</h1>
+          <p className="text-ink/70">Incoming Requests & Assigned Work</p>
+        </div>
+        <div className="flex gap-2">
+          <Link to="/map" className="px-4 py-2 border border-deep-green/20 rounded-lg font-semibold flex items-center gap-2 hover:bg-sand transition-all"><MapIcon size={17}/> Map</Link>
+          <Link to="/report" className="px-4 py-2 bg-orange text-paper rounded-lg font-bold flex items-center gap-2 hover:bg-orange/90 hover:-translate-y-0.5 transition-all shadow-sm"><PlusCircle size={17}/> Report</Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-sand p-4 rounded shadow-sm border border-deep-green/10 flex flex-col items-center justify-center">
+        <div className="bg-sand p-4 rounded shadow-sm border hover:-translate-y-1 hover:shadow-md transition-all duration-200 border-deep-green/10 flex flex-col items-center justify-center">
           <p className="text-ink/60 text-[10px] md:text-xs font-semibold uppercase text-center">New Requests</p>
           <p className="text-2xl font-bold text-deep-green">{newRequests.length}</p>
         </div>
-        <div className="bg-sand p-4 rounded shadow-sm border border-danger/30 flex flex-col items-center justify-center">
+        <div className="bg-sand p-4 rounded shadow-sm border hover:-translate-y-1 hover:shadow-md transition-all duration-200 border-danger/30 flex flex-col items-center justify-center">
           <p className="text-danger text-[10px] md:text-xs font-semibold uppercase text-center">High Priority</p>
           <p className="text-2xl font-bold text-danger">{highPriority.length}</p>
         </div>
-        <div className="bg-sand p-4 rounded shadow-sm border border-info-blue/30 flex flex-col items-center justify-center">
+        <div className="bg-sand p-4 rounded shadow-sm border hover:-translate-y-1 hover:shadow-md transition-all duration-200 border-info-blue/30 flex flex-col items-center justify-center">
           <p className="text-info-blue text-[10px] md:text-xs font-semibold uppercase text-center">In Progress</p>
           <p className="text-2xl font-bold text-info-blue">{inProgress.length}</p>
         </div>
-        <div className="bg-sand p-4 rounded shadow-sm border border-civic-green/30 flex flex-col items-center justify-center">
+        <div className="bg-sand p-4 rounded shadow-sm border hover:-translate-y-1 hover:shadow-md transition-all duration-200 border-civic-green/30 flex flex-col items-center justify-center">
           <p className="text-civic-green text-[10px] md:text-xs font-semibold uppercase text-center">Resolved</p>
           <p className="text-2xl font-bold text-civic-green">{resolved.length}</p>
         </div>
@@ -105,19 +114,24 @@ const AuthorityDashboard = () => {
           <div className="bg-paper rounded shadow-sm border border-deep-green/10 overflow-hidden flex flex-col h-[70vh]">
             <div className="p-4 bg-sand border-b border-deep-green/10 flex justify-between items-center">
               <h2 className="font-bold text-deep-green">Assigned Work Queue</h2>
-              <div className="flex gap-2 text-ink/60">
-                <Search size={18} />
-                <Filter size={18} />
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink/40" />
+                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search" className="w-28 md:w-44 pl-7 pr-2 py-1.5 rounded border border-deep-green/15 bg-paper text-xs outline-none focus:border-deep-green" />
+                </div>
+                <select value={queueFilter} onChange={e => setQueueFilter(e.target.value)} className="text-xs rounded border border-deep-green/15 bg-paper p-1.5" aria-label="Filter assigned work">
+                  <option value="all">All</option><option value="new">New</option><option value="high">High</option><option value="progress">In Progress</option><option value="resolved">Resolved</option>
+                </select>
               </div>
             </div>
             
             <div className="overflow-y-auto flex-grow p-2 space-y-2">
               {loading ? (
                 <div className="p-4 text-center">Loading...</div>
-              ) : queue.length === 0 ? (
+              ) : visibleQueue.length === 0 ? (
                 <div className="p-4 text-center">Queue is empty.</div>
               ) : (
-                queue.map(issue => (
+                visibleQueue.map(issue => (
                   <div 
                     key={issue._id} 
                     onClick={() => setSelectedIssue(issue)}

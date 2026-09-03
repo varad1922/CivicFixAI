@@ -38,7 +38,7 @@ const Login = () => {
   };
 
   const handleGoogleSuccess = async (credentialResponse) => {
-    const success = await googleLogin(credentialResponse.credential);
+    const success = await googleLogin(credentialResponse.credential, activeTab);
     if (success) {
       navigate('/dashboard');
     }

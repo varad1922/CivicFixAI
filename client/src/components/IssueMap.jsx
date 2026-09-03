@@ -74,11 +74,11 @@ const IssueMap = () => {
       setIssues((prev) => prev.map(issue => issue._id === updatedIssue._id ? updatedIssue : issue));
     };
 
-    socket.on('issue:created', handleNewIssue);
+    socket.on('issue:map:new', handleNewIssue);
     socket.on('issue:updated', handleIssueUpdate);
 
     return () => {
-      socket.off('issue:created', handleNewIssue);
+      socket.off('issue:map:new', handleNewIssue);
       socket.off('issue:updated', handleIssueUpdate);
     };
   }, [socket]);
@@ -131,7 +131,7 @@ const IssueMap = () => {
     <div className="flex flex-col h-full w-full">
       {locationError && (
         <div className="bg-amber/20 text-amber p-3 mb-2 flex justify-between items-center rounded text-sm md:text-base">
-          <span>{locationStatus} We are showing a default location.</span>
+          <span>{locationStatus} The map is not using a fake fallback location.</span>
           <button onClick={handleRetryLocation} className="bg-amber text-paper px-3 py-1 rounded text-sm hover:bg-amber/90">Use My Location</button>
         </div>
       )}

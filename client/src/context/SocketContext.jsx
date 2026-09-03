@@ -1,71 +1,75 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { AuthContext } from './AuthContext';
 
-const SocketContext = createContext();
-
-export const useSocket = () => {
-  return useContext(SocketContext);
-};
+const SocketContext = createContext({ socket: null, connected: false });
+export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const { token, user } = useContext(AuthContext);
+  const socketRef = useRef(null);
 
   useEffect(() => {
-    if (token && user) {
-      const SOCKET_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
-      
-      const newSocket = io(SOCKET_URL, {
-        auth: {
-          token
-        },
-        transports: ['websocket', 'polling']
-      });
-
-      newSocket.on('connect', () => {
-        setConnected(true);
-        console.log('Socket connected');
-      });
-
-      newSocket.on('disconnect', () => {
-        setConnected(false);
-        console.log('Socket disconnected');
-      });
-
-      newSocket.on('notification:citizen', (data) => {
-        setNotifications(prev => [...prev, { id: Date.now(), msg: data.message }]);
-        setTimeout(() => setNotifications(prev => prev.slice(1)), 5000);
-      });
-
-      newSocket.on('notification:authority', (data) => {
-        setNotifications(prev => [...prev, { id: Date.now(), msg: data.message }]);
-        setTimeout(() => setNotifications(prev => prev.slice(1)), 5000);
-      });
-
-      setSocket(newSocket);
-
-      return () => {
-        newSocket.disconnect();
-      };
-    } else {
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-        setConnected(false);
-      }
+    if (!token || !user) {
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+      setSocket(null);
+      setConnected(false);
+      return undefined;
     }
-  }, [token, user]);
+
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const socketUrl = apiUrl.replace(/\/api\/?$/, '');
+    const newSocket = io(socketUrl, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: Infinity
+    });
+
+    const pushNotification = (data) => {
+      const id = `${Date.now()}-${Math.random()}`;
+      setNotifications(prev => [...prev, { id, msg: data?.message || 'You have a new CivicFix update.' }]);
+      window.setTimeout(() => setNotifications(prev => prev.filter(note => note.id !== id)), 5000);
+    };
+
+    const handleConnect = () => setConnected(true);
+    const handleDisconnect = () => setConnected(false);
+    const handleConnectError = (error) => {
+      console.warn('Socket connection error:', error.message);
+      setConnected(false);
+    };
+
+    newSocket.on('connect', handleConnect);
+    newSocket.on('disconnect', handleDisconnect);
+    newSocket.on('connect_error', handleConnectError);
+    newSocket.on('notification:citizen', pushNotification);
+    newSocket.on('notification:authority', pushNotification);
+
+    socketRef.current = newSocket;
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.off('connect', handleConnect);
+      newSocket.off('disconnect', handleDisconnect);
+      newSocket.off('connect_error', handleConnectError);
+      newSocket.off('notification:citizen', pushNotification);
+      newSocket.off('notification:authority', pushNotification);
+      newSocket.disconnect();
+      if (socketRef.current === newSocket) socketRef.current = null;
+      setConnected(false);
+    };
+  }, [token, user?.id, user?.role]);
 
   return (
     <SocketContext.Provider value={{ socket, connected }}>
       {children}
-      {/* Toast Notification Container */}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-        {notifications.map((note, idx) => (
-          <div key={note.id} className="bg-deep-green text-paper p-4 rounded-lg shadow-lg flex items-center justify-between border-l-4 border-civic-green animate-in slide-in-from-right-8 fade-in">
+      <div className="fixed bottom-20 md:bottom-4 right-4 z-[1000] flex flex-col gap-2 max-w-sm pointer-events-none">
+        {notifications.map(note => (
+          <div key={note.id} className="bg-deep-green text-paper p-4 rounded-lg shadow-lg border-l-4 border-civic-green animate-in slide-in-from-right-8 fade-in">
             <span className="font-semibold text-sm">{note.msg}</span>
           </div>
         ))}

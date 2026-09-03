@@ -3,7 +3,7 @@ const { analyzeImageWithGemini } = require('./services/ai/geminiProvider');
 
 async function testAI() {
   console.log('Testing Gemini AI Integration...');
-  const testImageUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Pothole_in_the_road.jpg/640px-Pothole_in_the_road.jpg';
+  const testImageUrl = process.env.TEST_IMAGE_URL || 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Pothole_in_the_road.jpg/640px-Pothole_in_the_road.jpg';
   
   if (!process.env.GEMINI_API_KEY) {
     console.error('FAILED: GEMINI_API_KEY is missing from environment variables');
@@ -11,7 +11,7 @@ async function testAI() {
   }
 
   try {
-    console.log(`Using model: ${process.env.GEMINI_MODEL || 'gemini-2.5-flash'}`);
+    console.log(`Using model: ${process.env.GEMINI_MODEL || 'gemini-3.5-flash'}`);
     console.log(`Fetching sample image: ${testImageUrl}`);
     const analysis = await analyzeImageWithGemini(testImageUrl);
     console.log('\n--- SUCCESS ---');

@@ -1,105 +1,103 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/auth/`;
 
 export const AuthContext = createContext();
 
+const normalizeUser = (raw) => {
+  if (!raw) return null;
+  const role = typeof raw.role === 'string' ? raw.role.toLowerCase().trim() : '';
+  if (!['citizen', 'authority', 'admin'].includes(role)) return null;
+  return { ...raw, role };
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token') || null);
+  const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Set default auth header
   useEffect(() => {
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common.Authorization = `Bearer ${token}`;
       localStorage.setItem('token', token);
     } else {
-      delete axios.defaults.headers.common['Authorization'];
+      delete axios.defaults.headers.common.Authorization;
       localStorage.removeItem('token');
     }
   }, [token]);
 
-  // Load user on start
+  const loadUser = async (accessToken) => {
+    const response = await axios.get(`${API_URL}me`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const nextUser = normalizeUser(response.data);
+    if (!nextUser) throw new Error('Account role is missing or invalid.');
+    setUser(nextUser);
+    return nextUser;
+  };
+
   useEffect(() => {
-    const loadUser = async () => {
+    const hydrate = async () => {
       if (!token) {
         setLoading(false);
         return;
       }
+
       try {
-        const response = await axios.get(`${API_URL}me`);
-        setUser(response.data);
+        await loadUser(token);
       } catch (err) {
-        console.error(err);
+        console.error('Failed to restore authenticated session:', err);
         setToken(null);
         setUser(null);
       } finally {
         setLoading(false);
       }
     };
-    loadUser();
+
+    hydrate();
   }, [token]);
 
-  const register = async (userData) => {
+  const authenticate = async (request) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.post(`${API_URL}register`, userData);
-      if (response.data) {
-        setToken(response.data.token);
-        setUser(response.data);
-      }
-      setLoading(false);
+      const response = await request();
+      const nextToken = response.data?.token;
+      if (!nextToken) throw new Error('Authentication succeeded without a session token.');
+
+      // Always re-read the authoritative profile from the backend. This prevents a
+      // stale/default frontend role from deciding which dashboard is rendered.
+      setToken(nextToken);
+      const freshUser = await loadUser(nextToken);
+      if (!freshUser) throw new Error('Unable to load account profile.');
       return true;
     } catch (err) {
-      setError(err.response?.data?.message || err.message);
+      console.error('Authentication failed:', err);
+      setError(err.response?.data?.message || err.message || 'Authentication failed');
+      setToken(null);
+      setUser(null);
       setLoading(false);
       return false;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const login = async (userData) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await axios.post(`${API_URL}login`, userData);
-      if (response.data) {
-        setToken(response.data.token);
-        setUser(response.data);
-      }
-      setLoading(false);
-      return true;
-    } catch (err) {
-      setError(err.response?.data?.message || err.message);
-      setLoading(false);
-      return false;
-    }
-  };
+  const register = async (userData) =>
+    authenticate(() => axios.post(`${API_URL}register`, userData));
 
-  const googleLogin = async (tokenId) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await axios.post(`${API_URL}google`, { token: tokenId });
-      if (response.data) {
-        setToken(response.data.token);
-        setUser(response.data);
-      }
-      setLoading(false);
-      return true;
-    } catch (err) {
-      setError(err.response?.data?.message || err.message);
-      setLoading(false);
-      return false;
-    }
-  };
+  const login = async (userData) =>
+    authenticate(() => axios.post(`${API_URL}login`, userData));
+
+  const googleLogin = async (credential, requestedRole = 'citizen') =>
+    authenticate(() => axios.post(`${API_URL}google`, { token: credential, requestedRole }));
 
   const logout = () => {
     setToken(null);
     setUser(null);
+    setError(null);
   };
 
   const updateProfile = async (profileData) => {
@@ -107,21 +105,30 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const response = await axios.patch(`${API_URL}profile`, profileData);
-      if (response.data) {
-        setUser(response.data);
-      }
-      setLoading(false);
+      // Refresh the complete server-side profile so role and account metadata
+      // can never become stale after an edit.
+      await loadUser(token);
       return true;
     } catch (err) {
-      setError(err.response?.data?.message || err.message);
-      setLoading(false);
+      setError(err.response?.data?.message || err.message || 'Failed to update profile');
       return false;
+    } finally {
+      setLoading(false);
     }
   };
 
-  return (
-    <AuthContext.Provider value={{ user, token, loading, error, register, login, googleLogin, logout, updateProfile, setError }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = useMemo(() => ({
+    user,
+    token,
+    loading,
+    error,
+    register,
+    login,
+    googleLogin,
+    logout,
+    updateProfile,
+    setError
+  }), [user, token, loading, error]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

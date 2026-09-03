@@ -18,3 +18,15 @@
     color: var(--color-ink);
   }
 }
+@layer components {
+  .civic-interactive {
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  }
+  .civic-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgb(23 33 30 / 10%);
+  }
+  .civic-interactive:active {
+    transform: translateY(0) scale(0.99);
+  }
+}
