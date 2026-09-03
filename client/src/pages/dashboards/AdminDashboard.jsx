@@ -116,8 +116,8 @@ const AdminDashboard = () => {
           </div>
 
           <div className="bg-paper rounded shadow-sm border border-deep-green/10 overflow-hidden">
-            <div className="p-4 bg-sand border-b border-deep-green/10">
-              <h2 className="font-bold text-deep-green">User Management</h2>
+            <div className="p-4 bg-sand border-b border-deep-green/10 flex justify-between items-center">
+              <h2 className="font-bold text-deep-green">Authority Management</h2>
             </div>
             
             {/* Mobile Stacked List, Desktop Table */}
@@ -127,24 +127,19 @@ const AdminDashboard = () => {
                   <tr className="bg-deep-green/5">
                     <th className="p-3 border-b text-sm font-semibold text-deep-green">Name</th>
                     <th className="p-3 border-b text-sm font-semibold text-deep-green">Email</th>
-                    <th className="p-3 border-b text-sm font-semibold text-deep-green">Role</th>
+                    <th className="p-3 border-b text-sm font-semibold text-deep-green">Department</th>
+                    <th className="p-3 border-b text-sm font-semibold text-deep-green">Jurisdiction</th>
                     <th className="p-3 border-b text-sm font-semibold text-deep-green">Status</th>
                     <th className="p-3 border-b text-sm font-semibold text-deep-green text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map(u => (
+                  {users.filter(u => u.role === 'authority').map(u => (
                     <tr key={u._id} className="hover:bg-sand/30 border-b border-deep-green/5">
                       <td className="p-3 font-medium">{u.name}</td>
                       <td className="p-3 text-ink/70">{u.email}</td>
-                      <td className="p-3">
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${
-                          u.role === 'admin' ? 'bg-danger/20 text-danger' : 
-                          u.role === 'authority' ? 'bg-info-blue/20 text-info-blue' : 'bg-sand text-deep-green'
-                        }`}>
-                          {u.role}
-                        </span>
-                      </td>
+                      <td className="p-3 text-ink/70">{u.department || 'N/A'}</td>
+                      <td className="p-3 text-ink/70">{u.jurisdiction || 'N/A'}</td>
                       <td className="p-3">
                         <span className={`px-2 py-1 rounded text-xs font-bold ${
                           u.verificationStatus === 'pending' ? 'bg-amber/20 text-amber' : 
@@ -156,7 +151,7 @@ const AdminDashboard = () => {
                         </span>
                       </td>
                       <td className="p-3 text-right">
-                        {u.role === 'authority' && u.verificationStatus === 'pending' && (
+                        {u.verificationStatus === 'pending' && (
                           <div className="flex justify-end gap-2">
                             <button 
                               onClick={() => handleUpdateStatus(u._id, 'verified')}
@@ -174,7 +169,7 @@ const AdminDashboard = () => {
                             </button>
                           </div>
                         )}
-                        {u.role !== 'admin' && u.verificationStatus !== 'pending' && u.verificationStatus !== 'suspended' && (
+                        {u.verificationStatus !== 'pending' && u.verificationStatus !== 'suspended' && (
                            <button 
                              onClick={() => handleUpdateStatus(u._id, 'suspended')}
                              disabled={actionLoading === u._id}
@@ -183,7 +178,7 @@ const AdminDashboard = () => {
                              Suspend
                            </button>
                         )}
-                        {u.role !== 'admin' && u.verificationStatus === 'suspended' && (
+                        {u.verificationStatus === 'suspended' && (
                            <button 
                              onClick={() => handleUpdateStatus(u._id, 'verified')}
                              disabled={actionLoading === u._id}
@@ -199,22 +194,17 @@ const AdminDashboard = () => {
               </table>
             </div>
 
-            {/* Mobile View */}
+            {/* Mobile View Authority */}
             <div className="md:hidden flex flex-col">
-              {users.map(u => (
+              {users.filter(u => u.role === 'authority').map(u => (
                 <div key={u._id} className="p-4 border-b border-deep-green/10 flex flex-col gap-3">
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-bold text-sm">{u.name}</h3>
                       <p className="text-xs text-ink/60">{u.email}</p>
+                      <p className="text-xs text-info-blue mt-1">{u.department} | {u.jurisdiction}</p>
                     </div>
                     <div className="text-right flex flex-col items-end gap-1">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${
-                        u.role === 'admin' ? 'bg-danger/20 text-danger' : 
-                        u.role === 'authority' ? 'bg-info-blue/20 text-info-blue' : 'bg-sand text-deep-green'
-                      }`}>
-                        {u.role}
-                      </span>
                       <span className={`px-2 py-1 rounded text-[10px] font-bold ${
                           u.verificationStatus === 'pending' ? 'bg-amber/20 text-amber' : 
                           u.verificationStatus === 'rejected' ? 'bg-danger/20 text-danger' : 
@@ -227,7 +217,7 @@ const AdminDashboard = () => {
                   </div>
                   
                   <div className="flex justify-end gap-2 mt-2">
-                    {u.role === 'authority' && u.verificationStatus === 'pending' && (
+                    {u.verificationStatus === 'pending' && (
                       <>
                         <button 
                           onClick={() => handleUpdateStatus(u._id, 'verified')}
@@ -245,7 +235,7 @@ const AdminDashboard = () => {
                         </button>
                       </>
                     )}
-                    {u.role !== 'admin' && u.verificationStatus !== 'pending' && u.verificationStatus !== 'suspended' && (
+                    {u.verificationStatus !== 'pending' && u.verificationStatus !== 'suspended' && (
                        <button 
                          onClick={() => handleUpdateStatus(u._id, 'suspended')}
                          disabled={actionLoading === u._id}
@@ -254,7 +244,105 @@ const AdminDashboard = () => {
                          Suspend
                        </button>
                     )}
-                    {u.role !== 'admin' && u.verificationStatus === 'suspended' && (
+                    {u.verificationStatus === 'suspended' && (
+                       <button 
+                         onClick={() => handleUpdateStatus(u._id, 'verified')}
+                         disabled={actionLoading === u._id}
+                         className="px-3 py-1.5 bg-civic-green text-paper rounded text-xs font-semibold disabled:opacity-50"
+                       >
+                         Unsuspend
+                       </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-paper rounded shadow-sm border border-deep-green/10 overflow-hidden mt-6">
+            <div className="p-4 bg-sand border-b border-deep-green/10">
+              <h2 className="font-bold text-deep-green">Civilian Accounts</h2>
+            </div>
+            
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-deep-green/5">
+                    <th className="p-3 border-b text-sm font-semibold text-deep-green">Name</th>
+                    <th className="p-3 border-b text-sm font-semibold text-deep-green">Email</th>
+                    <th className="p-3 border-b text-sm font-semibold text-deep-green">Status</th>
+                    <th className="p-3 border-b text-sm font-semibold text-deep-green text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.filter(u => u.role === 'citizen').map(u => (
+                    <tr key={u._id} className="hover:bg-sand/30 border-b border-deep-green/5">
+                      <td className="p-3 font-medium">{u.name}</td>
+                      <td className="p-3 text-ink/70">{u.email}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-1 rounded text-xs font-bold ${
+                          u.verificationStatus === 'suspended' ? 'bg-ink/20 text-ink' : 
+                          'bg-civic-green/20 text-civic-green'
+                        }`}>
+                          {u.verificationStatus || 'verified'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        {u.verificationStatus !== 'suspended' && (
+                           <button 
+                             onClick={() => handleUpdateStatus(u._id, 'suspended')}
+                             disabled={actionLoading === u._id}
+                             className="px-2 py-1 bg-ink/20 text-ink rounded text-xs font-semibold disabled:opacity-50 ml-2"
+                           >
+                             Suspend
+                           </button>
+                        )}
+                        {u.verificationStatus === 'suspended' && (
+                           <button 
+                             onClick={() => handleUpdateStatus(u._id, 'verified')}
+                             disabled={actionLoading === u._id}
+                             className="px-2 py-1 bg-civic-green text-paper rounded text-xs font-semibold disabled:opacity-50 ml-2"
+                           >
+                             Unsuspend
+                           </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile View */}
+            <div className="md:hidden flex flex-col">
+              {users.filter(u => u.role === 'citizen').map(u => (
+                <div key={u._id} className="p-4 border-b border-deep-green/10 flex flex-col gap-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-bold text-sm">{u.name}</h3>
+                      <p className="text-xs text-ink/60">{u.email}</p>
+                    </div>
+                    <div className="text-right flex flex-col items-end gap-1">
+                      <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                          u.verificationStatus === 'suspended' ? 'bg-ink/20 text-ink' : 
+                          'bg-civic-green/20 text-civic-green'
+                        }`}>
+                          {u.verificationStatus || 'verified'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end gap-2 mt-2">
+                    {u.verificationStatus !== 'suspended' && (
+                       <button 
+                         onClick={() => handleUpdateStatus(u._id, 'suspended')}
+                         disabled={actionLoading === u._id}
+                         className="px-3 py-1.5 bg-ink/20 text-ink rounded text-xs font-semibold disabled:opacity-50"
+                       >
+                         Suspend
+                       </button>
+                    )}
+                    {u.verificationStatus === 'suspended' && (
                        <button 
                          onClick={() => handleUpdateStatus(u._id, 'verified')}
                          disabled={actionLoading === u._id}
