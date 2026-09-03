@@ -138,7 +138,9 @@ const ReportIssue = () => {
           title: analysis.suggestedTitle || prev.title,
           description: analysis.suggestedDescription || prev.description,
           category: analysis.category || prev.category,
-          severity: analysis.severity || prev.severity
+          severity: analysis.severity || prev.severity,
+          confidence: analysis.confidence || 0,
+          safetyImpact: analysis.safetyImpact || ''
         }));
 
         try {
@@ -311,7 +313,10 @@ const ReportIssue = () => {
           <div className="flex flex-col gap-4">
             <button onClick={analyzeIssue} className="w-full bg-deep-green text-paper px-6 py-4 rounded-lg text-lg font-bold hover:bg-civic-green shadow-md flex justify-center items-center gap-2">
               {loading ? (
-                <span className="flex items-center gap-2"><span className="animate-spin h-5 w-5 border-2 border-paper border-t-transparent rounded-full"></span> Analyzing Image...</span>
+                <span className="flex items-center gap-2">
+                  <span className="animate-spin h-5 w-5 border-2 border-paper border-t-transparent rounded-full opacity-80"></span>
+                  Analyzing your report...
+                </span>
               ) : (
                 'Run AI Analysis'
               )}
@@ -350,6 +355,35 @@ const ReportIssue = () => {
                 ))}
               </ul>
               <p className="text-xs italic text-ink/60">If your issue is already reported above, you may not need to submit this.</p>
+            </div>
+          )}
+
+          {formData.aiAnalysis && (
+            <div className="bg-sand/30 p-4 rounded-lg border border-deep-green/10 mb-6">
+              <h4 className="font-bold text-deep-green mb-3 flex items-center gap-2">
+                <span className="text-xl">✨</span>
+                AI Analysis Complete
+              </h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-ink/60 block text-xs font-semibold">Category</span>
+                  <span className="font-bold">{formData.aiAnalysis.category}</span>
+                </div>
+                <div>
+                  <span className="text-ink/60 block text-xs font-semibold">Severity</span>
+                  <span className="font-bold">{formData.aiAnalysis.severity}</span>
+                </div>
+                <div>
+                  <span className="text-ink/60 block text-xs font-semibold">Confidence</span>
+                  <span className="font-bold">{formData.aiAnalysis.confidence}%</span>
+                </div>
+              </div>
+              {formData.aiAnalysis.safetyImpact && (
+                <div className="mt-4">
+                  <span className="text-ink/60 block text-xs font-semibold">Safety Impact</span>
+                  <span className="text-sm font-medium leading-relaxed">{formData.aiAnalysis.safetyImpact}</span>
+                </div>
+              )}
             </div>
           )}
 
