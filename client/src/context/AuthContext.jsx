@@ -1,20 +1,33 @@
 import { createContext, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 
-const API_URL = `${import.meta.env.VITE_API_URL}/auth/`;
+const API_URL = `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/auth/`;
 
 export const AuthContext = createContext();
 
 const normalizeUser = (raw) => {
   if (!raw) return null;
-  const role = typeof raw.role === 'string' ? raw.role.toLowerCase().trim() : '';
-  if (!['citizen', 'authority', 'admin'].includes(role)) return null;
-  return { ...raw, role };
+
+  const role =
+    typeof raw.role === 'string'
+      ? raw.role.toLowerCase().trim()
+      : '';
+
+  if (!['citizen', 'authority', 'admin'].includes(role)) {
+    return null;
+  }
+
+  return {
+    ...raw,
+    role
+  };
 };
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [token, setToken] = useState(
+    () => localStorage.getItem('token')
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -30,10 +43,17 @@ export const AuthProvider = ({ children }) => {
 
   const loadUser = async (accessToken) => {
     const response = await axios.get(`${API_URL}me`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
     });
+
     const nextUser = normalizeUser(response.data);
-    if (!nextUser) throw new Error('Account role is missing or invalid.');
+
+    if (!nextUser) {
+      throw new Error('Account role is missing or invalid.');
+    }
+
     setUser(nextUser);
     return nextUser;
   };
@@ -48,7 +68,11 @@ export const AuthProvider = ({ children }) => {
       try {
         await loadUser(token);
       } catch (err) {
-        console.error('Failed to restore authenticated session:', err);
+        console.error(
+          'Failed to restore authenticated session:',
+          err
+        );
+
         setToken(null);
         setUser(null);
       } finally {
@@ -62,23 +86,42 @@ export const AuthProvider = ({ children }) => {
   const authenticate = async (request) => {
     setLoading(true);
     setError(null);
+
     try {
       const response = await request();
-      const nextToken = response.data?.token;
-      if (!nextToken) throw new Error('Authentication succeeded without a session token.');
 
-      // Always re-read the authoritative profile from the backend. This prevents a
-      // stale/default frontend role from deciding which dashboard is rendered.
+      const nextToken = response.data?.token;
+
+      if (!nextToken) {
+        throw new Error(
+          'Authentication succeeded without a session token.'
+        );
+      }
+
       setToken(nextToken);
+
       const freshUser = await loadUser(nextToken);
-      if (!freshUser) throw new Error('Unable to load account profile.');
+
+      if (!freshUser) {
+        throw new Error(
+          'Unable to load account profile.'
+        );
+      }
+
       return true;
     } catch (err) {
       console.error('Authentication failed:', err);
-      setError(err.response?.data?.message || err.message || 'Authentication failed');
+
+      setError(
+        err.response?.data?.message ||
+        err.message ||
+        'Authentication failed'
+      );
+
       setToken(null);
       setUser(null);
       setLoading(false);
+
       return false;
     } finally {
       setLoading(false);
@@ -86,13 +129,25 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (userData) =>
-    authenticate(() => axios.post(`${API_URL}register`, userData));
+    authenticate(() =>
+      axios.post(`${API_URL}register`, userData)
+    );
 
   const login = async (userData) =>
-    authenticate(() => axios.post(`${API_URL}login`, userData));
+    authenticate(() =>
+      axios.post(`${API_URL}login`, userData)
+    );
 
-  const googleLogin = async (credential, requestedRole = 'citizen') =>
-    authenticate(() => axios.post(`${API_URL}google`, { token: credential, requestedRole }));
+  const googleLogin = async (
+    credential,
+    requestedRole = 'citizen'
+  ) =>
+    authenticate(() =>
+      axios.post(`${API_URL}google`, {
+        token: credential,
+        requestedRole
+      })
+    );
 
   const logout = () => {
     setToken(null);
@@ -103,32 +158,48 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (profileData) => {
     setLoading(true);
     setError(null);
+
     try {
-      const response = await axios.patch(`${API_URL}profile`, profileData);
-      // Refresh the complete server-side profile so role and account metadata
-      // can never become stale after an edit.
+      await axios.patch(
+        `${API_URL}profile`,
+        profileData
+      );
+
       await loadUser(token);
+
       return true;
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to update profile');
+      setError(
+        err.response?.data?.message ||
+        err.message ||
+        'Failed to update profile'
+      );
+
       return false;
     } finally {
       setLoading(false);
     }
   };
 
-  const value = useMemo(() => ({
-    user,
-    token,
-    loading,
-    error,
-    register,
-    login,
-    googleLogin,
-    logout,
-    updateProfile,
-    setError
-  }), [user, token, loading, error]);
+  const value = useMemo(
+    () => ({
+      user,
+      token,
+      loading,
+      error,
+      register,
+      login,
+      googleLogin,
+      logout,
+      updateProfile,
+      setError
+    }),
+    [user, token, loading, error]
+  );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
