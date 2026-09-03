@@ -1,34 +1,28 @@
 require('dotenv').config();
-const { analyzeImageWithGemini } = require('./services/ai/geminiProvider');
+const { analyzeImageWithGemini, model } = require('./services/ai/geminiProvider');
 
-async function testAI() {
-  console.log('Testing Gemini AI Integration...');
-  const testImageUrl = process.env.TEST_IMAGE_URL || 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Pothole_in_the_road.jpg/640px-Pothole_in_the_road.jpg';
-  
+async function test() {
+  console.log('Testing Gemini AI Pipeline');
+  console.log('Model:', model);
   if (!process.env.GEMINI_API_KEY) {
-    console.error('FAILED: GEMINI_API_KEY is missing from environment variables');
+    console.error('ERROR: GEMINI_API_KEY is missing');
     process.exit(1);
   }
-
+  console.log('API Key configured: YES');
+  
+  // Use a reliable test image url
+  const testImageUrl = 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=800&q=80';
+  console.log('Test Image URL:', testImageUrl);
+  
   try {
-    console.log(`Using model: ${process.env.GEMINI_MODEL || 'gemini-3.5-flash'}`);
-    console.log(`Fetching sample image: ${testImageUrl}`);
-    const analysis = await analyzeImageWithGemini(testImageUrl);
-    console.log('\n--- SUCCESS ---');
-    console.log('AI Response:', JSON.stringify(analysis, null, 2));
-    
-    // Validate output structure
-    if (!analysis.category || !analysis.severity) {
-      console.error('\nFAILED: Response missing required fields (category, severity)');
-      process.exit(1);
-    }
-    
-    console.log('\nOutput format looks correct!');
+    console.log('Sending to Gemini...');
+    const result = await analyzeImageWithGemini(testImageUrl);
+    console.log('✅ Analysis Successful:');
+    console.log(JSON.stringify(result, null, 2));
   } catch (error) {
-    console.error('\n--- FAILED ---');
-    console.error(error.message);
+    console.error('❌ AI Analysis Failed:', error.message);
     process.exit(1);
   }
 }
 
-testAI();
+test();

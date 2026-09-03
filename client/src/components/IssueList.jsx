@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import IssueStatusBadge from './IssueStatusBadge';
 
 const IssueList = ({ issues, emptyMessage = 'No issues found.' }) => {
   if (!issues || issues.length === 0) {
@@ -40,12 +41,7 @@ const IssueList = ({ issues, emptyMessage = 'No issues found.' }) => {
                   </span>
                 </td>
                 <td className="p-4">
-                  <span className={`px-2 py-1 rounded text-xs font-bold ${
-                    issue.status === 'Resolved' ? 'bg-civic-green/20 text-civic-green' : 
-                    'bg-deep-green/10 text-deep-green'
-                  }`}>
-                    {issue.status}
-                  </span>
+                  <IssueStatusBadge status={issue.status} />
                 </td>
                 <td className="p-4 text-ink/60 text-sm">{new Date(issue.createdAt).toLocaleDateString()}</td>
                 <td className="p-4 text-right">
@@ -66,12 +62,8 @@ const IssueList = ({ issues, emptyMessage = 'No issues found.' }) => {
             className="block bg-paper p-4 rounded-lg shadow-sm border border-deep-green/10 hover:border-deep-green/30 active:scale-[0.99] transition-all"
           >
             <div className="flex justify-between items-start mb-3">
-              <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider ${
-                issue.status === 'Resolved' ? 'bg-civic-green/20 text-civic-green' : 'bg-deep-green/10 text-deep-green'
-              }`}>
-                {issue.status}
-              </span>
-              <span className="text-xs text-ink/50 font-medium">
+              <IssueStatusBadge status={issue.status} />
+              <span className="text-xs text-ink/50 font-medium mt-1">
                 {new Date(issue.createdAt).toLocaleDateString()}
               </span>
             </div>
