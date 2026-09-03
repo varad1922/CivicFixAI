@@ -1,6 +1,6 @@
 const { GoogleGenAI } = require('@google/genai');
 
-const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const apiKey = process.env.GEMINI_API_KEY;
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
@@ -44,7 +44,7 @@ const analyzeImageWithGemini = async (imageUrl) => {
     const response = await ai.models.generateContent({
       model,
       contents: [
-        { text: prompt },
+        prompt,
         { inlineData: image }
       ],
       config: { responseMimeType: 'application/json' }

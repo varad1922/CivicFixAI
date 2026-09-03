@@ -1,0 +1,1 @@
+create policy "Admins can update all profiles" on public.profiles for update using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin'));
