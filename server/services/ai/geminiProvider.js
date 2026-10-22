@@ -1,8 +1,15 @@
 const { GoogleGenAI } = require('@google/genai');
 
-const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
-const apiKey = process.env.GEMINI_API_KEY;
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+const rawApiKey = (process.env.GEMINI_API_KEY || '').trim();
+const configuredModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const ai = rawApiKey ? new GoogleGenAI({ apiKey: rawApiKey }) : null;
+
+const CANDIDATE_MODELS = [
+  configuredModel,
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash'
+].filter(Boolean);
 
 const fetchImageAsBase64 = async (imageUrl) => {
   const controller = new AbortController();
@@ -34,39 +41,50 @@ const parseJson = (text) => {
 };
 
 const analyzeImageWithGemini = async (imageUrl) => {
-  if (!apiKey || !ai) throw new Error('GEMINI_API_KEY is not configured on the server');
+  if (!rawApiKey || !ai) throw new Error('GEMINI_API_KEY is not configured on the server');
   if (!imageUrl) throw new Error('Image URL is required for analysis');
 
   const prompt = `Analyze this civic issue photo and return ONLY valid JSON.\n\nRequired schema:\n{\n  "category": "Pothole | Garbage Accumulation | Water Leakage | Broken Streetlight | Drainage Issue | Damaged Road | Illegal Dumping | Traffic Signal Issue | Public Property Damage | Other",\n  "severity": "Low | Medium | High | Critical",\n  "confidence": number,\n  "suggestedTitle": string,\n  "suggestedDescription": string,\n  "safetyImpact": string\n}\n\nconfidence must be 0-100. Do not invent details that are not visible in the image.`;
 
-  try {
-    const image = await fetchImageAsBase64(imageUrl);
-    const response = await ai.models.generateContent({
-      model,
-      contents: [
-        prompt,
-        { inlineData: image }
-      ],
-      config: { responseMimeType: 'application/json' }
-    });
+  const image = await fetchImageAsBase64(imageUrl);
 
-    const responseText = typeof response.text === 'function' ? await response.text() : response.text;
-    const analysis = parseJson(responseText);
+  let lastError = null;
+  // Try models with deduplication
+  const tried = new Set();
+  for (const modelToTry of CANDIDATE_MODELS) {
+    if (tried.has(modelToTry)) continue;
+    tried.add(modelToTry);
 
-    const categories = new Set(['Pothole', 'Garbage Accumulation', 'Water Leakage', 'Broken Streetlight', 'Drainage Issue', 'Damaged Road', 'Illegal Dumping', 'Traffic Signal Issue', 'Public Property Damage', 'Other']);
-    const severities = new Set(['Low', 'Medium', 'High', 'Critical']);
-    if (!categories.has(analysis.category)) analysis.category = 'Other';
-    if (!severities.has(analysis.severity)) analysis.severity = 'Medium';
-    analysis.confidence = Math.max(0, Math.min(100, Number(analysis.confidence) || 0));
-    analysis.suggestedTitle = String(analysis.suggestedTitle || 'Civic issue').slice(0, 100);
-    analysis.suggestedDescription = String(analysis.suggestedDescription || 'Please review and add details about the reported issue.').slice(0, 1000);
-    analysis.safetyImpact = String(analysis.safetyImpact || 'Review local safety impact.').slice(0, 500);
+    try {
+      const response = await ai.models.generateContent({
+        model: modelToTry,
+        contents: [
+          prompt,
+          { inlineData: image }
+        ],
+        config: { responseMimeType: 'application/json' }
+      });
 
-    return analysis;
-  } catch (error) {
-    console.error(`Gemini API Error [${model}]:`, error.message || error);
-    throw new Error(`Gemini analysis failed: ${error.message || 'unknown error'}`);
+      const responseText = typeof response.text === 'function' ? await response.text() : response.text;
+      const analysis = parseJson(responseText);
+
+      const categories = new Set(['Pothole', 'Garbage Accumulation', 'Water Leakage', 'Broken Streetlight', 'Drainage Issue', 'Damaged Road', 'Illegal Dumping', 'Traffic Signal Issue', 'Public Property Damage', 'Other']);
+      const severities = new Set(['Low', 'Medium', 'High', 'Critical']);
+      if (!categories.has(analysis.category)) analysis.category = 'Other';
+      if (!severities.has(analysis.severity)) analysis.severity = 'Medium';
+      analysis.confidence = Math.max(0, Math.min(100, Number(analysis.confidence) || 0));
+      analysis.suggestedTitle = String(analysis.suggestedTitle || 'Civic issue').slice(0, 100);
+      analysis.suggestedDescription = String(analysis.suggestedDescription || 'Please review and add details about the reported issue.').slice(0, 1000);
+      analysis.safetyImpact = String(analysis.safetyImpact || 'Review local safety impact.').slice(0, 500);
+
+      return analysis;
+    } catch (err) {
+      console.warn(`Gemini attempt with ${modelToTry} failed:`, err.message || err);
+      lastError = err;
+    }
   }
+
+  throw new Error(`Gemini analysis failed: ${lastError?.message || 'all model attempts failed'}`);
 };
 
-module.exports = { analyzeImageWithGemini, model };
+module.exports = { analyzeImageWithGemini, model: configuredModel };

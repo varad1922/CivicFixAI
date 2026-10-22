@@ -46,4 +46,50 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = { protect };
+const optionalProtect = async (req, res, next) => {
+  const authorization = req.headers.authorization || '';
+  if (!authorization.startsWith('Bearer ')) {
+    req.user = null;
+    return next();
+  }
+
+  const token = authorization.slice(7).trim();
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+
+  try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      req.user = null;
+      return next();
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile || !profile.is_active || profile.verification_status === 'suspended') {
+      req.user = null;
+      return next();
+    }
+
+    req.user = {
+      ...profile,
+      role: String(profile.role || '').toLowerCase(),
+      phone: user.user_metadata?.phone || '',
+      city: user.user_metadata?.city || '',
+      _id: profile.id
+    };
+
+    return next();
+  } catch (error) {
+    req.user = null;
+    return next();
+  }
+};
+
+module.exports = { protect, optionalProtect };

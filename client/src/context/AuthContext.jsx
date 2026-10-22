@@ -1,7 +1,5 @@
-import { createContext, useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
-
-const API_URL = `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/auth/`;
+import { createContext, useEffect, useMemo, useState, useCallback } from 'react';
+import { authApi } from '../services/api';
 
 export const AuthContext = createContext();
 
@@ -25,38 +23,26 @@ const normalizeUser = (raw) => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(
-    () => localStorage.getItem('token')
-  );
+  const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common.Authorization = `Bearer ${token}`;
-      localStorage.setItem('token', token);
-    } else {
-      delete axios.defaults.headers.common.Authorization;
-      localStorage.removeItem('token');
-    }
-  }, [token]);
+  const loadUser = useCallback(async (accessToken) => {
+    try {
+      const response = await authApi.getMe(accessToken);
+      const nextUser = normalizeUser(response.data);
 
-  const loadUser = async (accessToken) => {
-    const response = await axios.get(`${API_URL}me`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
+      if (!nextUser) {
+        throw new Error('Account role is missing or invalid.');
       }
-    });
 
-    const nextUser = normalizeUser(response.data);
-
-    if (!nextUser) {
-      throw new Error('Account role is missing or invalid.');
+      setUser(nextUser);
+      return nextUser;
+    } catch (err) {
+      console.error('Failed to load user profile:', err);
+      throw err;
     }
-
-    setUser(nextUser);
-    return nextUser;
-  };
+  }, []);
 
   useEffect(() => {
     const hydrate = async () => {
@@ -68,11 +54,8 @@ export const AuthProvider = ({ children }) => {
       try {
         await loadUser(token);
       } catch (err) {
-        console.error(
-          'Failed to restore authenticated session:',
-          err
-        );
-
+        console.warn('Session expired or invalid. Clearing saved token.');
+        localStorage.removeItem('token');
         setToken(null);
         setUser(null);
       } finally {
@@ -81,47 +64,37 @@ export const AuthProvider = ({ children }) => {
     };
 
     hydrate();
-  }, [token]);
+  }, [token, loadUser]);
 
-  const authenticate = async (request) => {
+  const authenticate = async (requestFn) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await request();
-
+      const response = await requestFn();
       const nextToken = response.data?.token;
 
       if (!nextToken) {
-        throw new Error(
-          'Authentication succeeded without a session token.'
-        );
+        throw new Error('Authentication succeeded without a session token.');
       }
 
+      localStorage.setItem('token', nextToken);
       setToken(nextToken);
 
       const freshUser = await loadUser(nextToken);
-
       if (!freshUser) {
-        throw new Error(
-          'Unable to load account profile.'
-        );
+        throw new Error('Unable to load account profile.');
       }
 
       return true;
     } catch (err) {
       console.error('Authentication failed:', err);
-
-      setError(
+      const message =
         err.response?.data?.message ||
+        err.extractedMessage ||
         err.message ||
-        'Authentication failed'
-      );
-
-      setToken(null);
-      setUser(null);
-      setLoading(false);
-
+        'Authentication failed. Please verify your credentials.';
+      setError(message);
       return false;
     } finally {
       setLoading(false);
@@ -129,27 +102,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (userData) =>
-    authenticate(() =>
-      axios.post(`${API_URL}register`, userData)
-    );
+    authenticate(() => authApi.register(userData));
 
   const login = async (userData) =>
-    authenticate(() =>
-      axios.post(`${API_URL}login`, userData)
-    );
+    authenticate(() => authApi.login(userData));
 
-  const googleLogin = async (
-    credential,
-    requestedRole = 'citizen'
-  ) =>
-    authenticate(() =>
-      axios.post(`${API_URL}google`, {
-        token: credential,
-        requestedRole
-      })
-    );
+  const googleLogin = async (credential, requestedRole = 'citizen') =>
+    authenticate(() => authApi.googleAuth(credential, requestedRole));
 
   const logout = () => {
+    localStorage.removeItem('token');
     setToken(null);
     setUser(null);
     setError(null);
@@ -160,21 +122,18 @@ export const AuthProvider = ({ children }) => {
     setError(null);
 
     try {
-      await axios.patch(
-        `${API_URL}profile`,
-        profileData
-      );
-
-      await loadUser(token);
-
+      await authApi.updateProfile(profileData);
+      if (token) {
+        await loadUser(token);
+      }
       return true;
     } catch (err) {
-      setError(
+      const message =
         err.response?.data?.message ||
+        err.extractedMessage ||
         err.message ||
-        'Failed to update profile'
-      );
-
+        'Failed to update profile.';
+      setError(message);
       return false;
     } finally {
       setLoading(false);

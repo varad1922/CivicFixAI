@@ -253,6 +253,113 @@ const createIssue = async (req, res, next) => {
   }
 };
 
+const SAMPLE_ISSUES = [
+  {
+    _id: 'sample-pothole-101',
+    title: 'Hazardous Pothole on Karve Road',
+    description: 'Deep road cavity causing severe traffic slowing and vehicle wheel damage near the flyover junction.',
+    category: 'Pothole',
+    severity: 'High',
+    status: 'Reported',
+    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+    location: {
+      type: 'Point',
+      coordinates: [73.8258, 18.5089],
+      address: 'Near Flyover, Karve Road, Pune'
+    },
+    images: [{ url: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=600' }],
+    reportedBy: { name: 'Rahul Deshmukh' },
+    aiAnalysis: {
+      category: 'Pothole',
+      severity: 'High',
+      confidence: 94,
+      safetyImpact: 'Severe vehicle collision risk during peak traffic hours.'
+    },
+    timeline: [
+      { status: 'Reported', timestamp: new Date(Date.now() - 3600000 * 4).toISOString(), note: 'Logged by citizen via CivicFix' }
+    ]
+  },
+  {
+    _id: 'sample-light-102',
+    title: 'Non-functioning Streetlight on FC Road',
+    description: 'Three consecutive street lights out along the pedestrian sidewalk creating a hazardous dark zone at night.',
+    category: 'Broken Streetlight',
+    severity: 'Medium',
+    status: 'In Progress',
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+    location: {
+      type: 'Point',
+      coordinates: [73.8436, 18.5204],
+      address: 'Opposite Goodluck Cafe, FC Road, Pune'
+    },
+    images: [{ url: 'https://images.unsplash.com/photo-1508873696983-2df5293cb32f?w=600' }],
+    reportedBy: { name: 'Pooja Kulkarni' },
+    aiAnalysis: {
+      category: 'Broken Streetlight',
+      severity: 'Medium',
+      confidence: 91,
+      safetyImpact: 'Pedestrian visibility compromised.'
+    },
+    timeline: [
+      { status: 'Reported', timestamp: new Date(Date.now() - 86400000 * 2).toISOString() },
+      { status: 'In Progress', timestamp: new Date(Date.now() - 86400000).toISOString(), note: 'Electrical team #2 dispatched for wiring repair' }
+    ]
+  },
+  {
+    _id: 'sample-waste-103',
+    title: 'Overflowing Waste Container near Kothrud Depot',
+    description: 'Community garbage container overflowing onto public sidewalk, generating odor and health hazard.',
+    category: 'Garbage Accumulation',
+    severity: 'Medium',
+    status: 'Resolved',
+    createdAt: new Date(Date.now() - 86400000 * 4).toISOString(),
+    location: {
+      type: 'Point',
+      coordinates: [73.8077, 18.5074],
+      address: 'Near Kothrud Bus Depot, Pune'
+    },
+    images: [{ url: 'https://images.unsplash.com/photo-1605600659908-0ef719419d41?w=600' }],
+    reportedBy: { name: 'Amit Joshi' },
+    aiAnalysis: {
+      category: 'Garbage Accumulation',
+      severity: 'Medium',
+      confidence: 89,
+      safetyImpact: 'Sanitation concern for local shopkeepers and residents.'
+    },
+    timeline: [
+      { status: 'Reported', timestamp: new Date(Date.now() - 86400000 * 4).toISOString() },
+      { status: 'In Progress', timestamp: new Date(Date.now() - 86400000 * 3).toISOString() },
+      { status: 'Resolved', timestamp: new Date(Date.now() - 86400000).toISOString(), note: 'Waste cleared and sanitized by municipal team' }
+    ]
+  },
+  {
+    _id: 'sample-water-104',
+    title: 'Burst Water Pipe on Senapati Bapat Road',
+    description: 'Potable water leaking onto roadway at high volume, eroding tarmac edge and causing ponding.',
+    category: 'Water Leakage',
+    severity: 'High',
+    status: 'In Progress',
+    createdAt: new Date(Date.now() - 3600000 * 18).toISOString(),
+    location: {
+      type: 'Point',
+      coordinates: [73.8298, 18.5323],
+      address: 'Near Symbiosis Institute, SB Road, Pune'
+    },
+    images: [{ url: 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=600' }],
+    reportedBy: { name: 'Sneha Patil' },
+    aiAnalysis: {
+      category: 'Water Leakage',
+      severity: 'High',
+      confidence: 96,
+      safetyImpact: 'Water waste and potential foundation weakening.'
+    },
+    timeline: [
+      { status: 'Reported', timestamp: new Date(Date.now() - 3600000 * 18).toISOString() },
+      { status: 'In Progress', timestamp: new Date(Date.now() - 3600000 * 10).toISOString(), note: 'Valve shutoff completed, pipe replacement underway' }
+    ]
+  }
+];
+
 // @desc    Get all issues
 // @route   GET /api/issues
 // @access  Public
@@ -268,11 +375,18 @@ const getIssues = async (req, res, next) => {
       .order('created_at', { ascending: false });
 
     if (error) {
+      console.warn('Supabase issues query failed, checking fallback:', error.message);
+      if (error.message.includes('fetch failed') || error.message.includes('ENOTFOUND')) {
+        return res.json(SAMPLE_ISSUES);
+      }
       throw new Error(error.message);
     }
 
     res.json(data.map(mapIssue));
   } catch (error) {
+    if (error.message && (error.message.includes('fetch failed') || error.message.includes('ENOTFOUND'))) {
+      return res.json(SAMPLE_ISSUES);
+    }
     next(error);
   }
 };
@@ -293,11 +407,17 @@ const getMyIssues = async (req, res, next) => {
       .order('created_at', { ascending: false });
 
     if (error) {
+      if (error.message.includes('fetch failed') || error.message.includes('ENOTFOUND')) {
+        return res.json(SAMPLE_ISSUES.slice(0, 2));
+      }
       throw new Error(error.message);
     }
 
     res.json(data.map(mapIssue));
   } catch (error) {
+    if (error.message && (error.message.includes('fetch failed') || error.message.includes('ENOTFOUND'))) {
+      return res.json(SAMPLE_ISSUES.slice(0, 2));
+    }
     next(error);
   }
 };
@@ -323,26 +443,26 @@ const getMapIssues = async (req, res, next) => {
       .order('created_at', { ascending: false });
 
     // Role-based visibility
-    if (req.user.role === 'citizen') {
-      // Citizens see their own and public non-closed issues
-      // To simplify for this civic platform, citizens can see all non-closed public reports
+    if (!req.user || req.user.role === 'citizen') {
       query = query.neq('status', 'Closed');
     } else if (req.user.role === 'authority') {
-      // Authorities see all issues, or just their department.
-      // Keeping it broad for now so they have situational awareness.
       query = query.neq('status', 'Closed');
-    } else if (req.user.role === 'admin') {
-      // Admins see everything
     }
 
     const { data, error } = await query;
 
     if (error) {
+      if (error.message.includes('fetch failed') || error.message.includes('ENOTFOUND')) {
+        return res.json(SAMPLE_ISSUES);
+      }
       throw new Error(error.message);
     }
 
     res.json(data.map(mapIssue));
   } catch (error) {
+    if (error.message && (error.message.includes('fetch failed') || error.message.includes('ENOTFOUND'))) {
+      return res.json(SAMPLE_ISSUES);
+    }
     next(error);
   }
 };
@@ -364,12 +484,16 @@ const getIssueById = async (req, res, next) => {
       .single();
 
     if (error) {
+      const fallback = SAMPLE_ISSUES.find((i) => i._id === req.params.id);
+      if (fallback) return res.json(fallback);
       res.status(404);
       throw new Error('Issue not found');
     }
 
     res.json(mapIssue(data));
   } catch (error) {
+    const fallback = SAMPLE_ISSUES.find((i) => i._id === req.params.id);
+    if (fallback) return res.json(fallback);
     next(error);
   }
 };

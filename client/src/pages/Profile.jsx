@@ -1,39 +1,55 @@
-import { useState, useContext, useEffect } from 'react';
+import { useState, useContext, useEffect, useRef } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import axios from 'axios';
-import { Camera, Save, User, MapPin, Phone, Mail, Shield, Calendar } from 'lucide-react';
+import { uploadApi } from '../services/api';
+import {
+  Camera,
+  Save,
+  User,
+  MapPin,
+  Phone,
+  Mail,
+  Shield,
+  Building2,
+  Calendar,
+  CheckCircle2,
+  AlertCircle,
+  Loader2
+} from 'lucide-react';
+import { motion } from 'motion/react';
 
 const Profile = () => {
-  const { user, updateProfile, token } = useContext(AuthContext);
-  
+  const { user, updateProfile } = useContext(AuthContext);
+
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
-    city: ''
+    city: '',
   });
-  
+
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  const fileInputRef = useRef(null);
+
   useEffect(() => {
     if (user) {
       setFormData({
         name: user.name || '',
         phone: user.phone || '',
-        city: user.city || ''
+        city: user.city || '',
       });
       setAvatarPreview(user.avatar || '');
     }
   }, [user]);
 
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        setErrorMsg('Image must be less than 5MB');
+        setErrorMsg('Avatar image must be smaller than 5MB');
         return;
       }
       setAvatarFile(file);
@@ -51,170 +67,224 @@ const Profile = () => {
     try {
       let avatarUrl = user?.avatar;
 
-      // Upload image if changed
+      // Upload new avatar if changed
       if (avatarFile) {
-        const uploadData = new FormData();
-        uploadData.append('image', avatarFile);
-
-        const uploadRes = await axios.post(`${import.meta.env.VITE_API_URL}/upload`, uploadData, {
-          headers: { 
-            'Content-Type': 'multipart/form-data',
-            Authorization: `Bearer ${token}` 
-          }
-        });
-        
-        avatarUrl = uploadRes.data.url;
+        const uploadRes = await uploadApi.uploadImage(avatarFile);
+        avatarUrl = uploadRes.data?.url || avatarUrl;
       }
 
       const success = await updateProfile({
         name: formData.name,
         phone: formData.phone,
         city: formData.city,
-        avatar: avatarUrl
+        avatar: avatarUrl,
       });
 
       if (success) {
-        setSuccessMsg('Profile updated successfully!');
-      } else {
-        setErrorMsg('Failed to update profile.');
+        setSuccessMsg('Your profile has been successfully updated.');
+        setAvatarFile(null);
+        setTimeout(() => setSuccessMsg(''), 4000);
       }
     } catch (err) {
-      setErrorMsg(err.response?.data?.message || err.message);
+      setErrorMsg(err.response?.data?.message || err.message || 'Failed to update profile.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto mt-4 md:mt-8 w-full px-4 md:px-0">
-      <div className="bg-paper rounded-xl shadow-sm border border-deep-green/10 overflow-hidden">
-        <div className="p-6 bg-sand border-b border-deep-green/10 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-deep-green">My Profile</h2>
-          <div className="px-3 py-1 bg-deep-green/10 text-deep-green rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1">
-            <Shield size={14} />
-            {user?.role}
+    <div className="max-w-3xl mx-auto py-4 space-y-6">
+      {/* Profile Header Card */}
+      <div className="bg-gradient-to-r from-[#122B22] to-[#1A3E31] text-white p-6 sm:p-8 rounded-3xl shadow-lg border border-emerald-900/40 flex flex-col sm:flex-row items-center gap-6">
+        {/* Avatar upload trigger */}
+        <div className="relative group shrink-0">
+          <div className="w-24 h-24 rounded-3xl overflow-hidden border-2 border-emerald-400/40 bg-stone-900 shadow-md flex items-center justify-center text-3xl font-extrabold text-white">
+            {avatarPreview ? (
+              <img src={avatarPreview} alt={user?.name} className="w-full h-full object-cover" />
+            ) : (
+              user?.name?.charAt(0)?.toUpperCase() || 'U'
+            )}
           </div>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="absolute -bottom-2 -right-2 p-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-stone-950 shadow-md transition-transform group-hover:scale-105"
+            title="Change Avatar"
+          >
+            <Camera size={16} />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageChange}
+            className="hidden"
+          />
         </div>
 
-        <div className="p-6 md:p-8">
-          {errorMsg && <div className="bg-danger text-paper p-4 rounded-lg mb-6 shadow-sm font-medium">{errorMsg}</div>}
-          {successMsg && <div className="bg-civic-green text-paper p-4 rounded-lg mb-6 shadow-sm font-medium">{successMsg}</div>}
+        <div className="text-center sm:text-left flex-1 min-w-0">
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
+            <span className="text-[11px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              {user?.role || 'Citizen'}
+            </span>
+            {user?.verificationStatus && (
+              <span className="text-[11px] font-semibold text-stone-300">
+                • {user.verificationStatus}
+              </span>
+            )}
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-display truncate">
+            {user?.name || 'Account Settings'}
+          </h1>
+          <p className="text-stone-300 text-xs sm:text-sm mt-0.5 truncate">{user?.email}</p>
+        </div>
+      </div>
 
-          <form onSubmit={handleSubmit} className="space-y-8">
-            
-            {/* Profile Photo Section */}
-            <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-deep-green/10">
-              <div className="relative group">
-                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-sand shadow-sm bg-sand">
-                  {avatarPreview ? (
-                    <img src={avatarPreview} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-deep-green/5 text-deep-green/30">
-                      <User size={64} />
-                    </div>
-                  )}
-                </div>
-                <label className="absolute bottom-0 right-0 p-3 bg-deep-green text-paper rounded-full shadow-md cursor-pointer hover:bg-civic-green transition-colors hover:scale-105 active:scale-95">
-                  <Camera size={20} />
-                  <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                </label>
-              </div>
-              <div className="text-center sm:text-left">
-                <h3 className="font-bold text-lg text-deep-green">Profile Photo</h3>
-                <p className="text-sm text-ink/60 mb-2">JPEG, PNG under 5MB</p>
-                <label className="text-info-blue text-sm font-semibold cursor-pointer hover:underline">
-                  Upload new photo
-                  <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                </label>
-              </div>
+      {/* Notifications */}
+      {successMsg && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 shadow-xs">
+          <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2 shadow-xs">
+          <AlertCircle size={16} className="text-rose-600 shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {/* Profile Form Card */}
+      <div className="bg-white rounded-3xl border border-stone-200/90 shadow-xl shadow-emerald-950/5 p-6 sm:p-8">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="border-b border-stone-100 pb-4 mb-2">
+            <h2 className="text-lg font-bold text-stone-900 font-display">Personal Details</h2>
+            <p className="text-stone-400 text-xs mt-0.5">
+              Update your public display name and contact preferences.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-stone-700 mb-1" htmlFor="name">
+              Full Name
+            </label>
+            <div className="relative">
+              <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+              <input
+                type="text"
+                id="name"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
+                required
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-200 bg-stone-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
+              />
             </div>
+          </div>
 
-            {/* Account Info Readonly */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-6 border-b border-deep-green/10">
-              <div className="bg-sand/30 p-4 rounded-lg flex items-start gap-3">
-                <Mail className="text-ink/40 mt-0.5" size={18} />
-                <div>
-                  <p className="text-xs font-semibold text-ink/60 uppercase">Email Address</p>
-                  <p className="font-medium text-ink">{user?.email}</p>
-                  <p className="text-[10px] text-ink/40 mt-1">Managed by authentication provider</p>
-                </div>
-              </div>
-              <div className="bg-sand/30 p-4 rounded-lg flex items-start gap-3">
-                <Calendar className="text-ink/40 mt-0.5" size={18} />
-                <div>
-                  <p className="text-xs font-semibold text-ink/60 uppercase">Member Since</p>
-                  <p className="font-medium text-ink">
-                    {user?.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'Unknown'}
-                  </p>
-                </div>
-              </div>
+          <div>
+            <label className="block text-xs font-bold text-stone-700 mb-1" htmlFor="email">
+              Email Address (Fixed)
+            </label>
+            <div className="relative">
+              <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+              <input
+                type="email"
+                id="email"
+                value={user?.email || ''}
+                disabled
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-200 bg-stone-100 text-stone-500 text-sm cursor-not-allowed"
+              />
             </div>
+          </div>
 
-            {/* Editable Fields */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-deep-green mb-1 flex items-center gap-2">
-                  <User size={16} /> Full Name
-                </label>
-                <input 
-                  type="text" 
-                  value={formData.name} 
-                  onChange={e => setFormData({...formData, name: e.target.value})} 
-                  className="w-full p-3 border border-deep-green/20 rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-deep-green/50" 
-                  placeholder="Your full name"
-                  required
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1" htmlFor="phone">
+                Phone Number
+              </label>
+              <div className="relative">
+                <Phone
+                  size={16}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400"
+                />
+                <input
+                  type="tel"
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, phone: e.target.value }))
+                  }
+                  placeholder="+91 98765 43210"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-200 bg-stone-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
                 />
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1" htmlFor="city">
+                City / Municipality
+              </label>
+              <div className="relative">
+                <MapPin
+                  size={16}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400"
+                />
+                <input
+                  type="text"
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, city: e.target.value }))
+                  }
+                  placeholder="e.g. Pune"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-200 bg-stone-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Authority specifics if authority */}
+          {user?.role === 'authority' && (
+            <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200/80 space-y-2 mt-4 text-xs">
+              <span className="font-bold text-blue-900 uppercase tracking-wider block text-[10px]">
+                Municipal Authority Credentials
+              </span>
+              <div className="grid grid-cols-2 gap-2 text-stone-700">
                 <div>
-                  <label className="block text-sm font-bold text-deep-green mb-1 flex items-center gap-2">
-                    <Phone size={16} /> Phone Number
-                  </label>
-                  <input 
-                    type="tel" 
-                    value={formData.phone} 
-                    onChange={e => setFormData({...formData, phone: e.target.value})} 
-                    className="w-full p-3 border border-deep-green/20 rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-deep-green/50" 
-                    placeholder="+1 (555) 000-0000"
-                  />
+                  <span className="text-stone-400 text-[11px] block">Department</span>
+                  <span className="font-bold text-stone-900">{user.department || '—'}</span>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-deep-green mb-1 flex items-center gap-2">
-                    <MapPin size={16} /> City / Location
-                  </label>
-                  <input 
-                    type="text" 
-                    value={formData.city} 
-                    onChange={e => setFormData({...formData, city: e.target.value})} 
-                    className="w-full p-3 border border-deep-green/20 rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-deep-green/50" 
-                    placeholder="Your city or locality"
-                  />
+                  <span className="text-stone-400 text-[11px] block">Jurisdiction</span>
+                  <span className="font-bold text-stone-900">{user.jurisdiction || '—'}</span>
                 </div>
               </div>
             </div>
+          )}
 
-            <div className="pt-4">
-              <button 
-                type="submit" 
-                disabled={loading} 
-                className="w-full bg-orange text-paper px-6 py-4 rounded-lg text-lg font-bold hover:bg-orange/90 shadow-md flex justify-center items-center gap-2 disabled:opacity-70 transition-all active:scale-[0.99]"
-              >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="animate-spin h-5 w-5 border-2 border-paper border-t-transparent rounded-full"></span> 
-                    Saving Changes...
-                  </span>
-                ) : (
-                  <>
-                    <Save size={20} />
-                    Save Profile Changes
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
+          <div className="pt-4 flex justify-end">
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-7 py-3 rounded-xl bg-[#122B22] hover:bg-[#1A3E31] text-white font-bold text-sm shadow-md transition-all active:scale-95 disabled:opacity-60"
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Saving Updates...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  <span>Save Profile Changes</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
