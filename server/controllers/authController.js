@@ -6,12 +6,42 @@ const { logActivity } = require('../services/activityService');
 // @access  Public
 const registerUser = async (req, res, next) => {
   try {
-    const { name, email, password, role: requestedRole = 'citizen', department, jurisdiction } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role: requestedRole = 'citizen',
+      department,
+      jurisdiction,
+      phone,
+      gender
+    } = req.body;
     const role = String(requestedRole).toLowerCase().trim();
 
     if (!name || !email || !password) {
       res.status(400);
-      throw new Error('Please add all fields (name, email, password)');
+      throw new Error('Please add all required fields (name, email, password)');
+    }
+
+    // Email validation: must contain @ and have valid structure
+    const trimmedEmail = String(email).trim().toLowerCase();
+    if (!trimmedEmail.includes('@') || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      res.status(400);
+      throw new Error('A valid email address containing @ and domain is required');
+    }
+
+    // Phone number validation: exactly 10 digits compulsory
+    const cleanedPhone = String(phone || '').replace(/\D/g, '');
+    if (!cleanedPhone || cleanedPhone.length !== 10) {
+      res.status(400);
+      throw new Error('Phone number must be exactly 10 digits');
+    }
+
+    // Gender validation: male, female, or other compulsory
+    const normalizedGender = String(gender || '').toLowerCase().trim();
+    if (!['male', 'female', 'other'].includes(normalizedGender)) {
+      res.status(400);
+      throw new Error('Please select a valid gender option (male, female, or other)');
     }
 
     if (role === 'authority') {
@@ -25,7 +55,7 @@ const registerUser = async (req, res, next) => {
       res.status(403);
       throw new Error('Cannot register as admin');
     }
-    
+
     if (role !== 'citizen' && role !== 'authority') {
       res.status(400);
       throw new Error('Invalid role specified');
@@ -35,10 +65,10 @@ const registerUser = async (req, res, next) => {
 
     // Create user via admin
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: email.toLowerCase(),
+      email: trimmedEmail,
       password,
       email_confirm: true,
-      user_metadata: { name, role }
+      user_metadata: { name, role, phone: cleanedPhone, gender: normalizedGender }
     });
 
     if (authError) {
@@ -167,8 +197,8 @@ const loginUser = async (req, res, next) => {
 
     // Update lastLogin tracking
     await supabase.from('profiles').update({
-       last_login: new Date().toISOString(),
-       last_active: new Date().toISOString()
+      last_login: new Date().toISOString(),
+      last_active: new Date().toISOString()
     }).eq('id', profile.id);
 
     await logActivity('USER_LOGGED_IN', profile.id, null, { method: 'email' });
@@ -199,7 +229,7 @@ const getMe = async (req, res, next) => {
 
     // Update last active on any protected request
     await supabase.from('profiles').update({
-       last_active: new Date().toISOString()
+      last_active: new Date().toISOString()
     }).eq('id', user.id);
 
     res.json({
@@ -238,7 +268,7 @@ const updateProfile = async (req, res, next) => {
         .from('profiles')
         .update(updateData)
         .eq('id', user.id);
-        
+
       if (profileError) {
         res.status(400);
         throw new Error(profileError.message);
@@ -254,7 +284,7 @@ const updateProfile = async (req, res, next) => {
       const { error: authError } = await supabase.auth.admin.updateUserById(user.id, {
         user_metadata: metadataUpdate
       });
-      
+
       if (authError) {
         res.status(400);
         throw new Error(authError.message);

@@ -55,10 +55,10 @@ const DashboardRouter = () => {
   
   // Fallback if role is invalid or not yet loaded correctly
   return (
-    <div className="p-12 text-center text-stone-500 bg-white rounded-3xl border border-stone-200 max-w-md mx-auto my-12">
-      <p className="font-bold text-stone-900 mb-1">Unrecognized Account Role</p>
-      <p className="text-xs text-stone-500 mb-4">Please log in again to refresh your role permissions.</p>
-      <Link to="/login" className="px-5 py-2.5 rounded-xl bg-[#122B22] text-white text-xs font-bold shadow-sm">
+    <div className="p-12 text-center text-[#A1A1B5] bg-[#151520] rounded-3xl border border-[#292938] max-w-md mx-auto my-12 shadow-2xl shadow-purple-950/20">
+      <p className="font-bold text-[#F5F3FF] mb-1">Unrecognized Account Role</p>
+      <p className="text-xs text-[#A1A1B5] mb-4">Please log in again to refresh your role permissions.</p>
+      <Link to="/login" className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold shadow-[0_0_12px_rgba(168,85,247,0.35)]">
         Sign In Again
       </Link>
     </div>

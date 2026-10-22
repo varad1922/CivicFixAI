@@ -1,22 +1,24 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #0F1715;
-  --color-ink-muted: #546560;
-  --color-deep-green: #122B22;
-  --color-forest: #1A3E31;
-  --color-civic-green: #2E6B52;
-  --color-emerald-accent: #10B981;
-  --color-paper: #F8F7F4;
-  --color-paper-card: #FFFFFF;
-  --color-sand: #EFECE6;
-  --color-sand-dark: #E2DDD3;
-  --color-orange: #EA580C;
-  --color-amber: #D97706;
-  --color-info-blue: #2563EB;
-  --color-danger: #DC2626;
-  --color-obsidian: #080D0B;
-  --color-obsidian-surface: #0E1714;
+  --color-bg-primary: #07070B;
+  --color-bg-secondary: #101018;
+  --color-card-surface: #151520;
+  --color-card-surface-hover: #1A1A28;
+  --color-card-surface-active: #222232;
+  --color-neon-purple: #A855F7;
+  --color-purple-glow: #C084FC;
+  --color-purple-dark: #6B21A8;
+  --color-electric-blue: #38BDF8;
+  --color-blue-glow: #7DD3FC;
+  --color-text-primary: #F5F3FF;
+  --color-text-secondary: #A1A1B5;
+  --color-text-muted: #6B6B80;
+  --color-border-subtle: #292938;
+  --color-border-bright: #3D3D52;
+  --color-neon-rose: #F43F5E;
+  --color-neon-amber: #F59E0B;
+  --color-neon-emerald: #10B981;
 }
 
 @layer base {
@@ -26,8 +28,8 @@
   }
 
   body {
-    background-color: var(--color-paper);
-    color: var(--color-ink);
+    background-color: #07070B;
+    color: #F5F3FF;
     font-family: var(--font-sans);
     overflow-x: hidden;
   }
@@ -39,80 +41,86 @@
 }
 
 @layer components {
-  /* Interactive card hover */
+  /* Neon Futuristic Interactive Card Hover */
   .civic-interactive {
-    transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
-                box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
-                border-color 200ms ease;
+    transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 220ms ease;
   }
   .civic-interactive:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 28px -6px rgba(18, 43, 34, 0.12);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px -4px rgba(168, 85, 247, 0.25), 0 0 15px rgba(56, 189, 248, 0.15);
+    border-color: rgba(168, 85, 247, 0.4);
   }
   .civic-interactive:active {
     transform: translateY(0) scale(0.99);
   }
 
-  /* Glassmorphism primitives */
-  .glass-card-light {
-    background: rgba(255, 255, 255, 0.88);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(18, 43, 34, 0.08);
-    box-shadow: 0 4px 20px -2px rgba(18, 43, 34, 0.04), 0 1px 3px 0 rgba(0, 0, 0, 0.02);
+  /* Dark Glassmorphic Card */
+  .glass-card-neon {
+    background: rgba(21, 21, 32, 0.85);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(41, 41, 56, 0.9);
+    box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.7);
   }
 
-  .glass-card-dark {
-    background: rgba(14, 23, 20, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.5);
+  .glass-card-neon:hover {
+    border-color: rgba(168, 85, 247, 0.3);
   }
 
-  .glass-panel-subtle {
-    background: rgba(239, 236, 230, 0.65);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(18, 43, 34, 0.06);
+  /* Subtle Gradient Borders */
+  .border-gradient-neon {
+    border: 1px solid transparent;
+    background-clip: padding-box, border-box;
+    background-origin: padding-box, border-box;
+    background-image: linear-gradient(to right, #151520, #151520),
+                      linear-gradient(135deg, rgba(168, 85, 247, 0.5), rgba(56, 189, 248, 0.3));
   }
 
-  /* Glow badges */
-  .glow-emerald {
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.35);
+  /* Neon Glowing Elements */
+  .glow-purple {
+    box-shadow: 0 0 25px rgba(168, 85, 247, 0.45);
   }
 
-  .glow-orange {
-    box-shadow: 0 0 20px rgba(234, 88, 12, 0.35);
+  .glow-purple-sm {
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.35);
   }
 
   .glow-blue {
-    box-shadow: 0 0 20px rgba(37, 99, 235, 0.35);
+    box-shadow: 0 0 25px rgba(56, 189, 248, 0.45);
+  }
+
+  .glow-rose {
+    box-shadow: 0 0 25px rgba(244, 63, 94, 0.45);
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Futuristic Scrollbar */
 ::-webkit-scrollbar {
   width: 7px;
   height: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: #F0EDE6;
+  background: #0B0B12;
 }
 ::-webkit-scrollbar-thumb {
-  background: #C4BEB1;
+  background: #2D2D42;
   border-radius: 9999px;
+  border: 1px solid #151520;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #1A3E31;
+  background: #A855F7;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
 }
 
-/* Leaflet Customizations for Dark / Premium Map Integration */
+/* Leaflet Dark Futuristic Map Popup Styles */
 .leaflet-popup-content-wrapper {
-  background: #FFFFFF !important;
-  color: #0F1715 !important;
-  border-radius: 14px !important;
-  box-shadow: 0 12px 30px -4px rgba(18, 43, 34, 0.22) !important;
-  border: 1px solid rgba(18, 43, 34, 0.08) !important;
+  background: #151520 !important;
+  color: #F5F3FF !important;
+  border-radius: 16px !important;
+  box-shadow: 0 14px 34px -4px rgba(0, 0, 0, 0.9), 0 0 15px rgba(168, 85, 247, 0.25) !important;
+  border: 1px solid rgba(168, 85, 247, 0.3) !important;
   padding: 0 !important;
 }
 .leaflet-popup-content {
@@ -121,21 +129,24 @@
 }
 .leaflet-container {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
-  border-radius: 16px;
+  background-color: #07070B !important;
+  border-radius: 20px;
 }
 .leaflet-popup-tip {
-  background: #FFFFFF !important;
+  background: #151520 !important;
 }
 
-/* Atmospheric Animation Keyframes */
-@keyframes pulseGlow {
+/* Cosmic Black-Hole & Accretion Animations */
+@keyframes neonPulseGlow {
   0%, 100% {
-    opacity: 0.6;
+    opacity: 0.65;
     transform: scale(1);
+    filter: drop-shadow(0 0 15px rgba(168, 85, 247, 0.4));
   }
   50% {
     opacity: 1;
-    transform: scale(1.08);
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 28px rgba(192, 132, 252, 0.7));
   }
 }
 
@@ -148,10 +159,23 @@
   }
 }
 
-.animate-pulse-glow {
-  animation: pulseGlow 4s ease-in-out infinite;
+@keyframes spinReverseSlow {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+.animate-neon-pulse {
+  animation: neonPulseGlow 3.5s ease-in-out infinite;
 }
 
 .animate-spin-slow {
-  animation: spinSlow 28s linear infinite;
+  animation: spinSlow 30s linear infinite;
+}
+
+.animate-spin-reverse-slow {
+  animation: spinReverseSlow 42s linear infinite;
 }

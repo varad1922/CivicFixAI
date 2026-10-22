@@ -150,29 +150,29 @@ export const SocketProvider = ({ children }) => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, x: 50, scale: 0.9 }}
               transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="pointer-events-auto bg-stone-900/90 text-stone-100 p-4
-                         rounded-xl shadow-2xl backdrop-blur-md
-                         border border-emerald-500/30 flex items-start gap-3"
+              className="pointer-events-auto bg-[#151520]/95 text-[#F5F3FF] p-4
+                         rounded-2xl shadow-2xl backdrop-blur-md
+                         border border-purple-500/40 shadow-purple-950/40 flex items-start gap-3"
             >
-              <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 mt-0.5">
+              <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-400 mt-0.5 border border-purple-500/30">
                 <Bell size={16} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-purple-400">
                     Live Civic Alert
                   </span>
-                  <span className="text-[10px] text-stone-400">
+                  <span className="text-[10px] text-[#A1A1B5]">
                     {item.timestamp}
                   </span>
                 </div>
-                <p className="text-sm font-medium text-stone-200 mt-0.5 leading-snug break-words">
+                <p className="text-sm font-medium text-[#F5F3FF] mt-0.5 leading-snug break-words">
                   {item.msg}
                 </p>
               </div>
               <button
                 onClick={() => removeNotification(item.id)}
-                className="text-stone-400 hover:text-stone-100 p-1 -mr-1 rounded-md transition-colors"
+                className="text-[#A1A1B5] hover:text-[#F5F3FF] p-1 -mr-1 rounded-md transition-colors"
                 aria-label="Dismiss alert"
               >
                 <X size={14} />

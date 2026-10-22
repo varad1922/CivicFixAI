@@ -76,7 +76,7 @@ const AuthorityDashboard = () => {
     setUpdatingId(id);
     try {
       await issuesApi.updateStatus(id, newStatus);
-      setSuccessMsg(`Issue #${id.slice(-6)} updated to "${newStatus}"`);
+      setSuccessMsg(`Incident #${id.slice(-6)} updated to "${newStatus}"`);
       setTimeout(() => setSuccessMsg(''), 4000);
 
       // Locally update
@@ -135,108 +135,110 @@ const AuthorityDashboard = () => {
   return (
     <div className="w-full space-y-6">
       {/* Operations Command Header */}
-      <div className="bg-gradient-to-r from-[#122B22] to-[#1A3E31] text-white p-6 sm:p-8 rounded-3xl shadow-lg border border-emerald-900/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      <div className="bg-gradient-to-r from-[#151520] via-[#101018] to-[#1e1333] text-[#F5F3FF] p-6 sm:p-8 rounded-3xl shadow-2xl border border-[#292938] flex flex-col md:flex-row md:items-center justify-between gap-4 relative overflow-hidden">
+        <div className="relative z-10">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[11px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            <span className="text-[11px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
               Authority Operations Command
             </span>
-            <span className="text-xs text-stone-300 font-medium">
+            <span className="text-xs text-[#A1A1B5] font-medium">
               {user?.department || 'Municipal Department'}
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-display">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F5F3FF] font-display">
             {user?.name || 'Authorized Officer'}
           </h1>
-          <p className="text-stone-300 text-xs sm:text-sm mt-1 flex items-center gap-1.5">
-            <Building2 size={14} className="text-emerald-400" />
+          <p className="text-[#A1A1B5] text-xs sm:text-sm mt-1 flex items-center gap-1.5">
+            <Building2 size={14} className="text-sky-400" />
             <span>Jurisdiction:</span>
-            <span className="font-semibold text-emerald-300">
+            <span className="font-semibold text-purple-300">
               {user?.jurisdiction || 'Assigned Municipal Region'}
             </span>
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="relative z-10 flex items-center gap-3">
           <Link
             to="/map"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs border border-white/20 transition-all active:scale-95"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#151520] hover:bg-[#1f1f2e] text-[#F5F3FF] font-bold text-xs border border-[#292938] hover:border-purple-500/50 transition-all active:scale-95 shadow-md"
           >
-            <MapIcon size={16} className="text-emerald-400" />
+            <MapIcon size={16} className="text-sky-400" />
             <span>Jurisdiction Map</span>
           </Link>
           <button
             onClick={fetchQueue}
             disabled={loading}
-            className="p-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-stone-200 transition-colors"
+            className="p-2.5 rounded-xl bg-[#151520] hover:bg-[#1f1f2e] text-[#A1A1B5] hover:text-[#F5F3FF] border border-[#292938] transition-colors"
             title="Refresh Queue"
           >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={16} className={loading ? 'animate-spin text-purple-400' : ''} />
           </button>
         </div>
+
+        <div className="absolute right-0 bottom-0 w-80 h-80 bg-purple-600/10 rounded-full blur-[100px] pointer-events-none" />
       </div>
 
       {/* Success Notification Alert */}
       {successMsg && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 shadow-xs">
-          <Check size={16} className="text-emerald-600" />
+        <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-bold flex items-center gap-2 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+          <Check size={16} className="text-purple-400" />
           <span>{successMsg}</span>
         </div>
       )}
 
       {/* Operational Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-stone-200/80 shadow-xs">
-          <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-1">
+        <div className="bg-[#151520] p-5 rounded-2xl border border-[#292938] shadow-lg">
+          <span className="text-xs font-bold text-[#A1A1B5] uppercase tracking-wider block mb-1">
             Assigned Queue
           </span>
-          <span className="text-3xl font-extrabold text-stone-900 font-display">
+          <span className="text-3xl font-extrabold text-[#F5F3FF] font-display">
             {stats.total}
           </span>
-          <span className="text-[11px] text-stone-400 mt-1 block">Total routed complaints</span>
+          <span className="text-[11px] text-[#A1A1B5] mt-1 block">Total routed complaints</span>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-stone-200/80 shadow-xs">
-          <span className="text-xs font-bold text-orange-600 uppercase tracking-wider block mb-1">
+        <div className="bg-[#151520] p-5 rounded-2xl border border-[#292938] shadow-lg">
+          <span className="text-xs font-bold text-amber-400 uppercase tracking-wider block mb-1">
             Pending Dispatch
           </span>
-          <span className="text-3xl font-extrabold text-orange-600 font-display">
+          <span className="text-3xl font-extrabold text-amber-400 font-display">
             {stats.reported}
           </span>
-          <span className="text-[11px] text-stone-400 mt-1 block">Awaiting inspection</span>
+          <span className="text-[11px] text-[#A1A1B5] mt-1 block">Awaiting inspection</span>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-stone-200/80 shadow-xs">
-          <span className="text-xs font-bold text-blue-600 uppercase tracking-wider block mb-1">
+        <div className="bg-[#151520] p-5 rounded-2xl border border-[#292938] shadow-lg">
+          <span className="text-xs font-bold text-sky-400 uppercase tracking-wider block mb-1">
             Under Repair
           </span>
-          <span className="text-3xl font-extrabold text-blue-600 font-display">
+          <span className="text-3xl font-extrabold text-sky-400 font-display">
             {stats.inProgress}
           </span>
-          <span className="text-[11px] text-stone-400 mt-1 block">Work in progress</span>
+          <span className="text-[11px] text-[#A1A1B5] mt-1 block">Work in progress</span>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-stone-200/80 shadow-xs">
-          <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider block mb-1">
+        <div className="bg-[#151520] p-5 rounded-2xl border border-[#292938] shadow-lg">
+          <span className="text-xs font-bold text-purple-400 uppercase tracking-wider block mb-1">
             Resolved
           </span>
-          <span className="text-3xl font-extrabold text-emerald-600 font-display">
+          <span className="text-3xl font-extrabold text-purple-400 font-display">
             {stats.resolved}
           </span>
-          <span className="text-[11px] text-stone-400 mt-1 block">Closed successfully</span>
+          <span className="text-[11px] text-[#A1A1B5] mt-1 block">Closed successfully</span>
         </div>
       </div>
 
       {/* Queue Filter & Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+      <div className="bg-[#151520] p-4 rounded-2xl border border-[#292938] shadow-lg flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A1A1B5]/60" />
           <input
             type="text"
             placeholder="Search queue by title, category, or address..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-xl border border-stone-200 bg-stone-50/60 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
+            className="w-full pl-10 pr-4 py-2 rounded-xl border border-[#292938] bg-[#101018] text-[#F5F3FF] placeholder-[#A1A1B5]/40 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
           />
         </div>
 
@@ -252,8 +254,8 @@ const AuthorityDashboard = () => {
               onClick={() => setStatusFilter(tab.key)}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 statusFilter === tab.key
-                  ? 'bg-[#122B22] text-white shadow-xs'
-                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200/70'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_0_12px_rgba(168,85,247,0.4)]'
+                  : 'bg-[#101018] border border-[#292938] text-[#A1A1B5] hover:text-[#F5F3FF]'
               }`}
             >
               {tab.label}
@@ -263,21 +265,21 @@ const AuthorityDashboard = () => {
       </div>
 
       {/* Operations Table */}
-      <div className="bg-white rounded-2xl border border-stone-200/80 shadow-xs overflow-hidden">
+      <div className="bg-[#151520] rounded-2xl border border-[#292938] shadow-lg overflow-hidden">
         {loading ? (
           <div className="p-12 text-center">
-            <RefreshCw size={24} className="animate-spin text-emerald-700 mx-auto mb-2" />
-            <p className="text-stone-500 text-sm">Loading operations queue...</p>
+            <RefreshCw size={24} className="animate-spin text-purple-400 mx-auto mb-2" />
+            <p className="text-[#A1A1B5] text-sm">Loading operations queue...</p>
           </div>
         ) : filteredQueue.length === 0 ? (
-          <div className="p-10 text-center text-stone-500 text-sm">
+          <div className="p-10 text-center text-[#A1A1B5] text-sm">
             No incidents currently match your filter in {user?.department || 'this department'}.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-stone-50/90 border-b border-stone-200/80 text-stone-500 text-xs uppercase tracking-wider font-semibold">
+                <tr className="bg-[#101018] border-b border-[#292938] text-[#A1A1B5] text-xs uppercase tracking-wider font-semibold">
                   <th className="py-4 px-5">Incident Case</th>
                   <th className="py-4 px-4">Category</th>
                   <th className="py-4 px-4">Severity</th>
@@ -286,11 +288,11 @@ const AuthorityDashboard = () => {
                   <th className="py-4 px-5 text-right">Quick Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-100">
+              <tbody className="divide-y divide-[#292938]/60">
                 {filteredQueue.map((issue) => (
                   <tr
                     key={issue._id}
-                    className="hover:bg-stone-50/70 transition-colors cursor-pointer"
+                    className="hover:bg-[#1a1a26] transition-colors cursor-pointer"
                     onClick={() => setSelectedIssue(issue)}
                   >
                     <td className="py-4 px-5">
@@ -299,19 +301,19 @@ const AuthorityDashboard = () => {
                           <img
                             src={issue.images[0].url}
                             alt=""
-                            className="w-12 h-12 rounded-xl object-cover border border-stone-200 shrink-0"
+                            className="w-12 h-12 rounded-xl object-cover border border-[#292938] shrink-0"
                           />
                         ) : (
-                          <div className="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-400 shrink-0 font-bold text-xs">
+                          <div className="w-12 h-12 rounded-xl bg-[#101018] border border-[#292938] flex items-center justify-center text-[#A1A1B5] shrink-0 font-bold text-xs">
                             MAP
                           </div>
                         )}
                         <div className="min-w-0 max-w-xs">
-                          <span className="font-bold text-stone-900 text-sm block truncate">
+                          <span className="font-bold text-[#F5F3FF] text-sm block truncate">
                             {issue.title}
                           </span>
-                          <span className="text-xs text-stone-400 flex items-center gap-1 mt-0.5 truncate">
-                            <MapPin size={11} className="shrink-0" />
+                          <span className="text-xs text-[#A1A1B5] flex items-center gap-1 mt-0.5 truncate">
+                            <MapPin size={11} className="shrink-0 text-sky-400" />
                             {issue.location?.address || 'GPS Coordinates Recorded'}
                           </span>
                         </div>
@@ -319,7 +321,7 @@ const AuthorityDashboard = () => {
                     </td>
 
                     <td className="py-4 px-4">
-                      <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-stone-100 text-stone-700">
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-[#101018] border border-[#292938] text-[#F5F3FF]">
                         {issue.category}
                       </span>
                     </td>
@@ -328,10 +330,10 @@ const AuthorityDashboard = () => {
                       <span
                         className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
                           issue.severity === 'Critical'
-                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                            ? 'bg-rose-500/10 text-rose-300 border border-rose-500/30 shadow-[0_0_8px_rgba(244,63,94,0.2)]'
                             : issue.severity === 'High'
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                            : 'bg-stone-100 text-stone-600'
+                            ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
+                            : 'bg-[#101018] border border-[#292938] text-[#A1A1B5]'
                         }`}
                       >
                         {issue.severity}
@@ -342,7 +344,7 @@ const AuthorityDashboard = () => {
                       <IssueStatusBadge status={issue.status} size="sm" />
                     </td>
 
-                    <td className="py-4 px-4 text-xs text-stone-500">
+                    <td className="py-4 px-4 text-xs text-[#A1A1B5]">
                       {issue.createdAt ? new Date(issue.createdAt).toLocaleDateString() : 'Recent'}
                     </td>
 
@@ -352,7 +354,7 @@ const AuthorityDashboard = () => {
                           <button
                             onClick={() => handleUpdateStatus(issue._id, 'In Progress')}
                             disabled={updatingId === issue._id}
-                            className="px-2.5 py-1 text-xs font-bold rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors"
+                            className="px-2.5 py-1 text-xs font-bold rounded-lg bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 border border-sky-500/30 transition-colors shadow-[0_0_8px_rgba(56,189,248,0.2)]"
                           >
                             Mark In Progress
                           </button>
@@ -361,14 +363,14 @@ const AuthorityDashboard = () => {
                           <button
                             onClick={() => handleUpdateStatus(issue._id, 'Resolved')}
                             disabled={updatingId === issue._id}
-                            className="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                            className="px-2.5 py-1 text-xs font-bold rounded-lg bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 border border-purple-500/30 transition-colors shadow-[0_0_8px_rgba(168,85,247,0.2)]"
                           >
                             Mark Resolved
                           </button>
                         )}
                         <Link
                           to={`/issues/${issue._id}`}
-                          className="p-1.5 text-stone-400 hover:text-stone-700 rounded-lg hover:bg-stone-100 transition-colors"
+                          className="p-1.5 text-[#A1A1B5] hover:text-[#F5F3FF] rounded-lg hover:bg-[#101018] transition-colors"
                           title="Full Details"
                         >
                           <ExternalLink size={15} />
@@ -386,35 +388,35 @@ const AuthorityDashboard = () => {
       {/* Detail Modal / Drawer for Inspection */}
       <AnimatePresence>
         {selectedIssue && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 max-h-[90vh] overflow-y-auto"
+              className="bg-[#151520] rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl shadow-purple-950/50 border border-[#292938] max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex items-start justify-between gap-4 mb-4 pb-4 border-b border-stone-100">
+              <div className="flex items-start justify-between gap-4 mb-4 pb-4 border-b border-[#292938]">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <IssueStatusBadge status={selectedIssue.status} size="sm" />
-                    <span className="text-xs font-bold text-stone-400">
+                    <span className="text-xs font-bold text-[#A1A1B5]">
                       Case #{selectedIssue._id?.slice(-8)}
                     </span>
                   </div>
-                  <h3 className="text-xl font-extrabold text-stone-900 font-display">
+                  <h3 className="text-xl font-extrabold text-[#F5F3FF] font-display">
                     {selectedIssue.title}
                   </h3>
                 </div>
                 <button
                   onClick={() => setSelectedIssue(null)}
-                  className="p-1.5 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100"
+                  className="p-1.5 rounded-xl text-[#A1A1B5] hover:text-[#F5F3FF] hover:bg-[#101018]"
                 >
                   <X size={18} />
                 </button>
               </div>
 
               {selectedIssue.images?.[0]?.url && (
-                <div className="h-56 rounded-2xl overflow-hidden mb-4 border border-stone-200 bg-stone-100">
+                <div className="h-56 rounded-2xl overflow-hidden mb-4 border border-[#292938] bg-[#101018]">
                   <img
                     src={selectedIssue.images[0].url}
                     alt={selectedIssue.title}
@@ -425,37 +427,37 @@ const AuthorityDashboard = () => {
 
               <div className="space-y-3 mb-6">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-stone-400 block">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#A1A1B5] block">
                     Description
                   </span>
-                  <p className="text-sm text-stone-700 mt-0.5 leading-relaxed">
+                  <p className="text-sm text-[#F5F3FF]/90 mt-0.5 leading-relaxed">
                     {selectedIssue.description || 'No detailed description provided.'}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 pt-2">
-                  <div className="p-3 rounded-xl bg-stone-50 border border-stone-200/60">
-                    <span className="text-[11px] font-bold text-stone-400 uppercase block">
+                  <div className="p-3 rounded-xl bg-[#101018] border border-[#292938]">
+                    <span className="text-[11px] font-bold text-[#A1A1B5] uppercase block">
                       Category
                     </span>
-                    <span className="text-xs font-bold text-stone-900 mt-0.5 block">
+                    <span className="text-xs font-bold text-[#F5F3FF] mt-0.5 block">
                       {selectedIssue.category}
                     </span>
                   </div>
-                  <div className="p-3 rounded-xl bg-stone-50 border border-stone-200/60">
-                    <span className="text-[11px] font-bold text-stone-400 uppercase block">
+                  <div className="p-3 rounded-xl bg-[#101018] border border-[#292938]">
+                    <span className="text-[11px] font-bold text-[#A1A1B5] uppercase block">
                       Severity
                     </span>
-                    <span className="text-xs font-bold text-rose-700 mt-0.5 block">
+                    <span className="text-xs font-bold text-rose-400 mt-0.5 block">
                       {selectedIssue.severity}
                     </span>
                   </div>
                 </div>
 
                 {selectedIssue.location?.coordinates && (
-                  <div className="p-3 rounded-xl bg-stone-50 border border-stone-200/60 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1.5 text-stone-600">
-                      <MapPin size={14} className="text-emerald-700" />
+                  <div className="p-3 rounded-xl bg-[#101018] border border-[#292938] flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-[#A1A1B5]">
+                      <MapPin size={14} className="text-sky-400" />
                       <span>
                         [{selectedIssue.location.coordinates[1]?.toFixed(4)},{' '}
                         {selectedIssue.location.coordinates[0]?.toFixed(4)}]
@@ -463,7 +465,7 @@ const AuthorityDashboard = () => {
                     </div>
                     <Link
                       to={`/map?lat=${selectedIssue.location.coordinates[1]}&lng=${selectedIssue.location.coordinates[0]}`}
-                      className="text-emerald-700 font-bold hover:underline"
+                      className="text-purple-400 font-bold hover:underline"
                     >
                       Locate on Map
                     </Link>
@@ -472,10 +474,10 @@ const AuthorityDashboard = () => {
               </div>
 
               {/* Status Update Action Buttons */}
-              <div className="pt-4 border-t border-stone-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="pt-4 border-t border-[#292938] flex flex-col sm:flex-row items-center justify-between gap-3">
                 <Link
                   to={`/issues/${selectedIssue._id}`}
-                  className="text-xs font-bold text-stone-600 hover:text-stone-900"
+                  className="text-xs font-bold text-[#A1A1B5] hover:text-[#F5F3FF]"
                 >
                   Open Full Case File
                 </Link>
@@ -485,7 +487,7 @@ const AuthorityDashboard = () => {
                     <button
                       onClick={() => handleUpdateStatus(selectedIssue._id, 'In Progress')}
                       disabled={updatingId === selectedIssue._id}
-                      className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs"
+                      className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-[0_0_12px_rgba(56,189,248,0.35)]"
                     >
                       Set In Progress
                     </button>
@@ -494,7 +496,7 @@ const AuthorityDashboard = () => {
                     <button
                       onClick={() => handleUpdateStatus(selectedIssue._id, 'Resolved')}
                       disabled={updatingId === selectedIssue._id}
-                      className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
+                      className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-[0_0_12px_rgba(168,85,247,0.35)]"
                     >
                       Resolve Case
                     </button>

@@ -24,39 +24,43 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-// Custom User Location Pin with radar animation
+// Custom User Location Pin with electric-blue radar animation
 const userIcon = new L.DivIcon({
   className: 'user-location-pin',
   html: `
-    <div style="position: relative; width: 22px; height: 22px;">
+    <div style="position: relative; width: 24px; height: 24px;">
       <div style="
         position: absolute;
-        inset: -6px;
-        background: rgba(16, 185, 129, 0.35);
+        inset: -8px;
+        background: rgba(56, 189, 248, 0.4);
         border-radius: 50%;
         animation: pulseGlow 2s infinite ease-in-out;
       "></div>
       <div style="
-        width: 22px;
-        height: 22px;
-        background: #10B981;
-        border: 3px solid #FFFFFF;
+        width: 24px;
+        height: 24px;
+        background: #38BDF8;
+        border: 3px solid #07070B;
         border-radius: 50%;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        box-shadow: 0 0 15px #38BDF8;
       "></div>
     </div>
   `,
-  iconSize: [22, 22],
-  iconAnchor: [11, 11],
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
 });
 
-// Status marker icons
+// Status marker icons with neon glows
 const createStatusMarker = (status) => {
-  let color = '#EA580C'; // Reported orange
+  let color = '#F59E0B'; // Reported neon amber
+  let glowColor = 'rgba(245, 158, 11, 0.8)';
+
   if (status === 'In Progress' || status === 'Under Review' || status === 'Assigned') {
-    color = '#2563EB'; // In Progress blue
+    color = '#38BDF8'; // In Progress electric blue
+    glowColor = 'rgba(56, 189, 248, 0.8)';
   } else if (status === 'Resolved' || status === 'Closed') {
-    color = '#059669'; // Resolved emerald
+    color = '#A855F7'; // Resolved neon purple
+    glowColor = 'rgba(168, 85, 247, 0.8)';
   }
 
   return new L.DivIcon({
@@ -67,14 +71,14 @@ const createStatusMarker = (status) => {
         width: 26px;
         height: 26px;
         border-radius: 50%;
-        border: 3px solid #FFFFFF;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        border: 2px solid #07070B;
+        box-shadow: 0 0 12px ${glowColor};
         display: flex;
         align-items: center;
         justify-content: center;
         transition: transform 150ms ease;
       ">
-        <div style="width: 7px; height: 7px; background: white; border-radius: 50%;"></div>
+        <div style="width: 7px; height: 7px; background: #FFFFFF; border-radius: 50%;"></div>
       </div>
     `,
     iconSize: [26, 26],
@@ -231,11 +235,11 @@ const IssueMap = () => {
   }, [issues, statusFilter, categoryFilter]);
 
   return (
-    <div className="relative w-full h-[650px] md:h-[720px] rounded-3xl overflow-hidden border border-stone-200/90 shadow-xl shadow-emerald-950/5 bg-stone-100 flex flex-col">
+    <div className="relative w-full h-[650px] md:h-[720px] rounded-3xl overflow-hidden border border-[#292938] shadow-2xl shadow-purple-950/20 bg-[#07070B] flex flex-col">
       {/* Floating Filter Bar */}
       <div className="absolute top-4 left-4 right-4 z-[1000] flex flex-wrap items-center justify-between gap-3 pointer-events-none">
         {/* Left Filter Pills */}
-        <div className="pointer-events-auto flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/95 backdrop-blur-md border border-stone-200 shadow-lg overflow-x-auto max-w-full">
+        <div className="pointer-events-auto flex items-center gap-1.5 p-1.5 rounded-2xl bg-[#151520]/90 backdrop-blur-md border border-[#292938] shadow-xl overflow-x-auto max-w-full">
           {[
             { key: 'all', label: `All (${issues.length})` },
             { key: 'reported', label: 'Reported' },
@@ -247,8 +251,8 @@ const IssueMap = () => {
               onClick={() => setStatusFilter(tab.key)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 statusFilter === tab.key
-                  ? 'bg-[#122B22] text-white shadow-xs'
-                  : 'text-stone-600 hover:bg-stone-100'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_0_12px_rgba(168,85,247,0.4)]'
+                  : 'text-[#A1A1B5] hover:text-[#F5F3FF] hover:bg-[#101018]'
               }`}
             >
               {tab.label}
@@ -259,13 +263,13 @@ const IssueMap = () => {
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="ml-1 px-2.5 py-1.5 rounded-xl bg-stone-100 text-stone-700 text-xs font-bold border-none focus:outline-none"
+              className="ml-1 px-2.5 py-1.5 rounded-xl bg-[#101018] text-[#F5F3FF] text-xs font-bold border border-[#292938] focus:outline-none focus:border-purple-500"
             >
-              <option value="all">All Categories</option>
+              <option value="all" className="bg-[#101018]">All Categories</option>
               {categories
                 .filter((c) => c !== 'all')
                 .map((c) => (
-                  <option key={c} value={c}>
+                  <option key={c} value={c} className="bg-[#101018]">
                     {c}
                   </option>
                 ))}
@@ -277,7 +281,7 @@ const IssueMap = () => {
         <div className="pointer-events-auto flex items-center gap-2">
           <button
             onClick={locateUser}
-            className="p-3 rounded-2xl bg-white/95 backdrop-blur-md border border-stone-200 text-stone-700 hover:text-emerald-700 hover:bg-white shadow-lg transition-all"
+            className="p-3 rounded-2xl bg-[#151520]/90 backdrop-blur-md border border-[#292938] text-[#F5F3FF] hover:text-sky-400 hover:border-sky-500/50 shadow-xl transition-all"
             title="Center on My Location"
           >
             <Crosshair size={18} />
@@ -285,7 +289,7 @@ const IssueMap = () => {
           <button
             onClick={fetchMapIssues}
             disabled={loading}
-            className="p-3 rounded-2xl bg-white/95 backdrop-blur-md border border-stone-200 text-stone-700 hover:text-emerald-700 hover:bg-white shadow-lg transition-all"
+            className="p-3 rounded-2xl bg-[#151520]/90 backdrop-blur-md border border-[#292938] text-[#F5F3FF] hover:text-purple-400 hover:border-purple-500/50 shadow-xl transition-all"
             title="Refresh Map Markers"
           >
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
@@ -293,16 +297,16 @@ const IssueMap = () => {
         </div>
       </div>
 
-      {/* Interactive Leaflet Map */}
+      {/* Interactive CartoDB Dark Matter Map */}
       <MapContainer
         center={centerTarget}
         zoom={13}
-        style={{ height: '100%', width: '100%' }}
+        style={{ height: '100%', width: '100%', background: '#07070B' }}
         className="z-0"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://carto.com/">CARTO</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
 
         <MapCenterer center={centerTarget} zoom={14} />
@@ -312,16 +316,16 @@ const IssueMap = () => {
           <>
             <Marker position={userLocation} icon={userIcon}>
               <Popup>
-                <div className="p-2 text-center text-xs font-bold">You Are Here</div>
+                <div className="p-2 text-center text-xs font-bold text-sky-400">Your Current Position</div>
               </Popup>
             </Marker>
             <Circle
               center={userLocation}
               radius={200}
               pathOptions={{
-                color: '#10B981',
-                fillColor: '#10B981',
-                fillOpacity: 0.12,
+                color: '#38BDF8',
+                fillColor: '#38BDF8',
+                fillOpacity: 0.15,
                 weight: 1.5,
               }}
             />
@@ -337,9 +341,9 @@ const IssueMap = () => {
           return (
             <Marker key={issue._id} position={[lat, lng]} icon={markerIcon}>
               <Popup className="civic-custom-popup">
-                <div className="p-3 w-56 space-y-2">
+                <div className="p-3 w-56 space-y-2 bg-[#151520] text-[#F5F3FF] rounded-xl">
                   {issue.images?.[0]?.url && (
-                    <div className="h-28 w-full rounded-xl overflow-hidden mb-2 bg-stone-100 border border-stone-200">
+                    <div className="h-28 w-full rounded-xl overflow-hidden mb-2 bg-[#101018] border border-[#292938]">
                       <img
                         src={issue.images[0].url}
                         alt=""
@@ -350,22 +354,22 @@ const IssueMap = () => {
 
                   <div className="flex items-center justify-between gap-1">
                     <IssueStatusBadge status={issue.status} size="sm" />
-                    <span className="text-[10px] font-bold text-stone-400">
+                    <span className="text-[10px] font-bold text-[#A1A1B5]">
                       {issue.category}
                     </span>
                   </div>
 
-                  <h4 className="font-extrabold text-stone-900 text-xs line-clamp-2 leading-tight">
+                  <h4 className="font-extrabold text-[#F5F3FF] text-xs line-clamp-2 leading-tight">
                     {issue.title}
                   </h4>
 
-                  <div className="pt-2 border-t border-stone-100 flex items-center justify-between text-[11px]">
-                    <span className="text-stone-400">
+                  <div className="pt-2 border-t border-[#292938] flex items-center justify-between text-[11px]">
+                    <span className="text-[#A1A1B5]">
                       {issue.createdAt ? new Date(issue.createdAt).toLocaleDateString() : 'Recent'}
                     </span>
                     <Link
                       to={`/issues/${issue._id}`}
-                      className="text-emerald-700 font-extrabold hover:underline inline-flex items-center gap-1"
+                      className="text-purple-400 hover:text-purple-300 font-extrabold hover:underline inline-flex items-center gap-1"
                     >
                       <span>Case File</span>
                       <ExternalLink size={12} />
@@ -379,18 +383,18 @@ const IssueMap = () => {
       </MapContainer>
 
       {/* Bottom Floating Legend */}
-      <div className="absolute bottom-4 left-4 z-[1000] p-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-stone-200 shadow-md flex items-center gap-4 text-xs font-semibold text-stone-700">
+      <div className="absolute bottom-4 left-4 z-[1000] p-2.5 rounded-2xl bg-[#151520]/90 backdrop-blur-md border border-[#292938] shadow-xl flex items-center gap-4 text-xs font-semibold text-[#F5F3FF]">
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-orange-500 border border-white shadow-xs" />
-          <span>Reported</span>
+          <span className="w-3 h-3 rounded-full bg-amber-400 border border-[#07070B] shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+          <span className="text-amber-300">Reported</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-blue-600 border border-white shadow-xs" />
-          <span>In Progress</span>
+          <span className="w-3 h-3 rounded-full bg-sky-400 border border-[#07070B] shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
+          <span className="text-sky-300">In Progress</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-emerald-600 border border-white shadow-xs" />
-          <span>Resolved</span>
+          <span className="w-3 h-3 rounded-full bg-purple-500 border border-[#07070B] shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
+          <span className="text-purple-300">Resolved</span>
         </div>
       </div>
     </div>

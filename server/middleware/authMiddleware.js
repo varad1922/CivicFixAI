@@ -34,8 +34,9 @@ const protect = async (req, res, next) => {
     req.user = {
       ...profile,
       role: String(profile.role || '').toLowerCase(),
-      phone: user.user_metadata?.phone || '',
-      city: user.user_metadata?.city || '',
+      phone: user.user_metadata?.phone || profile.phone || '',
+      gender: user.user_metadata?.gender || profile.gender || '',
+      city: user.user_metadata?.city || profile.city || '',
       _id: profile.id
     };
 
@@ -80,8 +81,9 @@ const optionalProtect = async (req, res, next) => {
     req.user = {
       ...profile,
       role: String(profile.role || '').toLowerCase(),
-      phone: user.user_metadata?.phone || '',
-      city: user.user_metadata?.city || '',
+      phone: user.user_metadata?.phone || profile.phone || '',
+      gender: user.user_metadata?.gender || profile.gender || '',
+      city: user.user_metadata?.city || profile.city || '',
       _id: profile.id
     };
 
