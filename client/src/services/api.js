@@ -8,6 +8,15 @@ import axios from 'axios';
  */
 export const getApiBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL;
+  const isLocalHost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  // If running locally in browser development and VITE_API_URL is either localhost or not set, prefer local backend
+  if (isLocalHost && (!envUrl || envUrl.includes('localhost') || envUrl.includes('127.0.0.1'))) {
+    return 'http://localhost:5000/api';
+  }
+
   if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
     let clean = envUrl.trim().replace(/\/+$/, '');
     if (!clean.endsWith('/api')) {
@@ -17,7 +26,7 @@ export const getApiBaseUrl = () => {
   }
 
   // If in browser and running locally, fallback to local backend port 5000
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+  if (isLocalHost) {
     return 'http://localhost:5000/api';
   }
 
@@ -58,11 +67,22 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message =
+    let message =
       error.response?.data?.message ||
       error.response?.data?.error ||
       error.message ||
       'An unexpected error occurred.';
+
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      message = 'Unable to reach the authentication service. Please verify your internet connection or check that the backend is active.';
+    } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      message = 'Server request timed out. The backend service may be waking up, please try again in a few seconds.';
+    } else if (error.response?.status === 401 && !error.response?.data?.message) {
+      message = 'Incorrect email or password. Please verify your credentials.';
+    } else if (error.response?.status === 503) {
+      message = error.response?.data?.message || 'Authentication service is temporarily unavailable. Please try again shortly.';
+    }
+
     error.extractedMessage = message;
     return Promise.reject(error);
   }

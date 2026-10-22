@@ -1,5 +1,19 @@
+const { OAuth2Client } = require('google-auth-library');
 const supabase = require('../config/supabase');
 const { logActivity } = require('../services/activityService');
+const { signToken } = require('../utils/tokenUtil');
+const {
+  isConnectivityError,
+  findUserByEmail,
+  findUserById,
+  addUser,
+  updateUser,
+  verifyPassword
+} = require('../utils/authFallbackStore');
+
+const googleClient = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID || '147063810952-gdt7uun5266ab8v1ra8muumrh3395ed1.apps.googleusercontent.com'
+);
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -53,33 +67,98 @@ const registerUser = async (req, res, next) => {
 
     if (role === 'admin') {
       res.status(403);
-      throw new Error('Cannot register as admin');
+      throw new Error('Cannot register as admin. Administrator accounts must be provisioned directly.');
     }
 
     if (role !== 'citizen' && role !== 'authority') {
       res.status(400);
-      throw new Error('Invalid role specified');
+      throw new Error('Invalid role specified. Only Citizen and Authority registrations are allowed.');
     }
 
     const verification_status = role === 'authority' ? 'pending' : 'verified';
 
-    // Create user via admin
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: trimmedEmail,
-      password,
-      email_confirm: true,
-      user_metadata: { name, role, phone: cleanedPhone, gender: normalizedGender }
-    });
+    // 1. Try registering via Supabase Auth Admin
+    let authData = null;
+    let authError = null;
+    let useFallback = false;
 
-    if (authError) {
-      res.status(400);
-      throw new Error(authError.message);
+    try {
+      const result = await supabase.auth.admin.createUser({
+        email: trimmedEmail,
+        password,
+        email_confirm: true,
+        user_metadata: { name, role, phone: cleanedPhone, gender: normalizedGender }
+      });
+      authData = result.data;
+      authError = result.error;
+    } catch (err) {
+      if (isConnectivityError(err)) {
+        useFallback = true;
+      } else {
+        res.status(400);
+        throw err;
+      }
     }
 
+    if (authError) {
+      if (isConnectivityError(authError)) {
+        useFallback = true;
+      } else {
+        const errorMsg = authError.message || '';
+        if (errorMsg.toLowerCase().includes('already') || errorMsg.toLowerCase().includes('exists')) {
+          res.status(400);
+          throw new Error('An account with this email address already exists. Please log in instead.');
+        }
+        res.status(400);
+        throw new Error(errorMsg || 'Registration failed');
+      }
+    }
+
+    // Fallback store when Supabase service is offline or paused
+    if (useFallback) {
+      const existing = findUserByEmail(trimmedEmail);
+      if (existing) {
+        res.status(400);
+        throw new Error('An account with this email address already exists. Please log in instead.');
+      }
+
+      const newFallbackUser = addUser({
+        name,
+        email: trimmedEmail,
+        password,
+        role,
+        department: role === 'authority' ? department : null,
+        jurisdiction: role === 'authority' ? jurisdiction : null,
+        verification_status,
+        phone: cleanedPhone,
+        gender: normalizedGender,
+        is_active: true
+      });
+
+      if (role === 'authority') {
+        res.status(403);
+        throw new Error('Authority account created and submitted for admin verification. You can log in after approval.');
+      }
+
+      const token = signToken(newFallbackUser);
+      return res.status(201).json({
+        _id: newFallbackUser.id,
+        name: newFallbackUser.name,
+        email: newFallbackUser.email,
+        role: newFallbackUser.role,
+        avatar: newFallbackUser.avatar,
+        verification_status: newFallbackUser.verification_status,
+        department: newFallbackUser.department,
+        jurisdiction: newFallbackUser.jurisdiction,
+        token
+      });
+    }
+
+    // Supabase success path: insert into profiles table
     const profileData = {
       id: authData.user.id,
       name,
-      email: email.toLowerCase(),
+      email: trimmedEmail,
       role,
       verification_status
     };
@@ -89,7 +168,6 @@ const registerUser = async (req, res, next) => {
       profileData.jurisdiction = jurisdiction;
     }
 
-    // Insert into profiles
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .insert(profileData)
@@ -101,25 +179,32 @@ const registerUser = async (req, res, next) => {
       throw new Error(profileError.message);
     }
 
-    // Authority accounts require admin verification before they can access the app.
+    // Authority accounts require admin verification before login
     if (role === 'authority') {
-      await logActivity('USER_REGISTERED', profile.id, null, { method: 'email', role });
+      try {
+        await logActivity('USER_REGISTERED', profile.id, null, { method: 'email', role });
+      } catch (_) {}
       res.status(403);
       throw new Error('Authority account created and submitted for admin verification. You can log in after approval.');
     }
 
-    // Now sign in to get token
-    const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
-      email: email.toLowerCase(),
-      password
-    });
+    // Citizen accounts: immediately sign in to get access token
+    let sessionToken = null;
+    try {
+      const { data: sessionData } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password
+      });
+      sessionToken = sessionData?.session?.access_token;
+    } catch (_) {}
 
-    if (sessionError) {
-      res.status(400);
-      throw new Error(sessionError.message);
+    if (!sessionToken) {
+      sessionToken = signToken(profile);
     }
 
-    await logActivity('USER_REGISTERED', profile.id, null, { method: 'email' });
+    try {
+      await logActivity('USER_REGISTERED', profile.id, null, { method: 'email' });
+    } catch (_) {}
 
     res.status(201).json({
       _id: profile.id,
@@ -130,7 +215,7 @@ const registerUser = async (req, res, next) => {
       verification_status: profile.verification_status,
       department: profile.department,
       jurisdiction: profile.jurisdiction,
-      token: sessionData.session.access_token,
+      token: sessionToken,
     });
   } catch (error) {
     next(error);
@@ -155,23 +240,103 @@ const loginUser = async (req, res, next) => {
       throw new Error('Please provide email and password');
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.toLowerCase(),
-      password
-    });
+    const normalizedEmail = email.toLowerCase().trim();
 
-    if (error) {
-      res.status(401);
-      throw new Error('Invalid email or password');
+    // 1. Attempt Supabase Auth
+    let supabaseUser = null;
+    let supabaseSession = null;
+    let isOffline = false;
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password
+      });
+
+      if (error) {
+        if (isConnectivityError(error)) {
+          isOffline = true;
+        } else {
+          res.status(401);
+          throw new Error('Invalid email or password');
+        }
+      } else if (data?.user && data?.session) {
+        supabaseUser = data.user;
+        supabaseSession = data.session;
+      }
+    } catch (err) {
+      if (isConnectivityError(err)) {
+        isOffline = true;
+      } else {
+        throw err;
+      }
     }
 
-    const { data: profile } = await supabase
+    // 2. If Supabase is offline/paused, use resilient fallback credentials
+    if (isOffline) {
+      const fallbackUser = findUserByEmail(normalizedEmail);
+      if (!fallbackUser) {
+        res.status(503);
+        throw new Error('Unable to reach the authentication service. Please check database connectivity or try again shortly.');
+      }
+
+      const isMatch = verifyPassword(password, fallbackUser.passwordHash);
+      if (!isMatch) {
+        res.status(401);
+        throw new Error('Invalid email or password');
+      }
+
+      if (!fallbackUser.is_active) {
+        res.status(401);
+        throw new Error('Account is deactivated or not found');
+      }
+
+      if (normalizedRequestedRole && fallbackUser.role !== normalizedRequestedRole) {
+        res.status(403);
+        throw new Error(`Access denied. This account is registered as ${fallbackUser.role}.`);
+      }
+
+      if (fallbackUser.role === 'authority' && fallbackUser.verification_status === 'pending') {
+        res.status(403);
+        throw new Error('Your authority account is awaiting admin verification.');
+      }
+      if (fallbackUser.role === 'authority' && fallbackUser.verification_status === 'rejected') {
+        res.status(403);
+        throw new Error('Your authority account verification was rejected.');
+      }
+      if (fallbackUser.verification_status === 'suspended') {
+        res.status(403);
+        throw new Error('Your account is suspended.');
+      }
+
+      updateUser(fallbackUser.id, {
+        last_login: new Date().toISOString(),
+        last_active: new Date().toISOString()
+      });
+
+      const token = signToken(fallbackUser);
+
+      return res.json({
+        _id: fallbackUser.id,
+        name: fallbackUser.name,
+        email: fallbackUser.email,
+        role: fallbackUser.role,
+        avatar: fallbackUser.avatar,
+        verification_status: fallbackUser.verification_status,
+        department: fallbackUser.department,
+        jurisdiction: fallbackUser.jurisdiction,
+        token
+      });
+    }
+
+    // 3. Supabase online: retrieve profile
+    const { data: profile, error: profileErr } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', data.user.id)
+      .eq('id', supabaseUser.id)
       .single();
 
-    if (!profile || !profile.is_active) {
+    if (profileErr || !profile || !profile.is_active) {
       res.status(401);
       throw new Error('Account is deactivated or not found');
     }
@@ -196,12 +361,16 @@ const loginUser = async (req, res, next) => {
     }
 
     // Update lastLogin tracking
-    await supabase.from('profiles').update({
-      last_login: new Date().toISOString(),
-      last_active: new Date().toISOString()
-    }).eq('id', profile.id);
+    try {
+      await supabase.from('profiles').update({
+        last_login: new Date().toISOString(),
+        last_active: new Date().toISOString()
+      }).eq('id', profile.id);
+    } catch (_) {}
 
-    await logActivity('USER_LOGGED_IN', profile.id, null, { method: 'email' });
+    try {
+      await logActivity('USER_LOGGED_IN', profile.id, null, { method: 'email' });
+    } catch (_) {}
 
     res.json({
       _id: profile.id,
@@ -212,7 +381,7 @@ const loginUser = async (req, res, next) => {
       verification_status: profile.verification_status,
       department: profile.department,
       jurisdiction: profile.jurisdiction,
-      token: data.session.access_token,
+      token: supabaseSession.access_token,
     });
   } catch (error) {
     next(error);
@@ -224,16 +393,16 @@ const loginUser = async (req, res, next) => {
 // @access  Private
 const getMe = async (req, res, next) => {
   try {
-    // req.user is set in authMiddleware and contains the Supabase profile
     const user = req.user;
 
-    // Update last active on any protected request
-    await supabase.from('profiles').update({
-      last_active: new Date().toISOString()
-    }).eq('id', user.id);
+    try {
+      await supabase.from('profiles').update({
+        last_active: new Date().toISOString()
+      }).eq('id', user.id);
+    } catch (_) {}
 
     res.json({
-      _id: user.id,
+      _id: user.id || user._id,
       name: user.name,
       email: user.email,
       role: user.role,
@@ -258,38 +427,26 @@ const updateProfile = async (req, res, next) => {
     const { name, phone, city, avatar } = req.body;
     const user = req.user;
 
-    // Update basic fields in profiles table
     const updateData = {};
     if (name) updateData.name = name;
     if (avatar) updateData.avatar = avatar;
 
     if (Object.keys(updateData).length > 0) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', user.id);
-
-      if (profileError) {
-        res.status(400);
-        throw new Error(profileError.message);
-      }
+      try {
+        await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('id', user.id);
+      } catch (_) {}
     }
 
-    // Update metadata (phone, city) in auth.users
-    const metadataUpdate = {};
-    if (phone !== undefined) metadataUpdate.phone = phone;
-    if (city !== undefined) metadataUpdate.city = city;
-
-    if (Object.keys(metadataUpdate).length > 0) {
-      const { error: authError } = await supabase.auth.admin.updateUserById(user.id, {
-        user_metadata: metadataUpdate
-      });
-
-      if (authError) {
-        res.status(400);
-        throw new Error(authError.message);
-      }
-    }
+    // Update in fallback store if present
+    updateUser(user.id, {
+      ...(name ? { name } : {}),
+      ...(avatar ? { avatar } : {}),
+      ...(phone !== undefined ? { phone } : {}),
+      ...(city !== undefined ? { city } : {})
+    });
 
     res.json({
       _id: user.id,
@@ -315,32 +472,71 @@ const googleAuth = async (req, res, next) => {
 
     if (!token) {
       res.status(400);
-      throw new Error('Google token is required');
+      throw new Error('Google authentication token is required');
     }
     if (!['citizen', 'authority', 'admin'].includes(role)) {
       res.status(400);
       throw new Error('Invalid login role selected');
     }
 
-    const { data, error } = await supabase.auth.signInWithIdToken({
-      provider: 'google',
-      token
-    });
-
-    if (error || !data?.user || !data?.session) {
-      res.status(401);
-      throw new Error(error?.message || 'Google authentication failed');
+    // Step 1: Verify token with Google Auth Library
+    let googleUser = null;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: token,
+        audience: process.env.GOOGLE_CLIENT_ID || '147063810952-gdt7uun5266ab8v1ra8muumrh3395ed1.apps.googleusercontent.com'
+      });
+      const payload = ticket.getPayload();
+      if (payload && payload.email) {
+        googleUser = {
+          id: payload.sub,
+          email: payload.email.toLowerCase(),
+          name: payload.name || payload.email.split('@')[0],
+          avatar: payload.picture || '',
+          email_verified: payload.email_verified
+        };
+      }
+    } catch (gErr) {
+      console.warn('Direct Google ID token verification notice:', gErr.message);
     }
 
-    const { user } = data;
-    let { data: profile, error: profileLookupError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle();
+    // Step 2: Try Supabase signInWithIdToken
+    let supabaseSession = null;
+    let profile = null;
 
-    if (profileLookupError) {
-      throw new Error(profileLookupError.message);
+    try {
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token
+      });
+
+      if (!error && data?.user && data?.session) {
+        supabaseSession = data.session;
+        const { data: p } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .maybeSingle();
+        profile = p;
+      }
+    } catch (_) {}
+
+    // Step 3: Handle profile resolution or creation
+    const email = googleUser?.email || profile?.email;
+    const name = googleUser?.name || profile?.name || 'Google User';
+    const avatar = googleUser?.avatar || profile?.avatar || '';
+
+    if (!email) {
+      res.status(401);
+      throw new Error('Google sign-in token could not be verified. Please ensure your Google Cloud OAuth Client is properly configured.');
+    }
+
+    // Check if user exists in fallback store or DB
+    if (!profile) {
+      const existingFallback = findUserByEmail(email);
+      if (existingFallback) {
+        profile = existingFallback;
+      }
     }
 
     if (!profile) {
@@ -350,26 +546,40 @@ const googleAuth = async (req, res, next) => {
       }
 
       const verification_status = role === 'authority' ? 'pending' : 'verified';
-      const { data: newProfile, error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: user.id,
-          name: user.user_metadata?.full_name || user.user_metadata?.name || 'Google User',
-          email: user.email,
-          avatar: user.user_metadata?.avatar_url || '',
-          auth_provider: 'google',
-          role,
-          verification_status
-        })
-        .select()
-        .single();
 
-      if (profileError) {
-        res.status(400);
-        throw new Error(profileError.message);
+      // Attempt Supabase insert
+      try {
+        const { data: newP, error: insertErr } = await supabase
+          .from('profiles')
+          .insert({
+            name,
+            email,
+            avatar,
+            auth_provider: 'google',
+            role,
+            verification_status,
+            is_active: true
+          })
+          .select()
+          .single();
+
+        if (!insertErr && newP) {
+          profile = newP;
+        }
+      } catch (_) {}
+
+      // If Supabase insert failed or offline, save to fallback
+      if (!profile) {
+        profile = addUser({
+          name,
+          email,
+          avatar,
+          role,
+          verification_status,
+          auth_provider: 'google',
+          is_active: true
+        });
       }
-      profile = newProfile;
-      await logActivity('USER_REGISTERED', profile.id, null, { method: 'google', role });
     } else if (String(profile.role).toLowerCase() !== role) {
       res.status(403);
       throw new Error(`Access denied. This Google account is registered as ${profile.role}.`);
@@ -388,12 +598,18 @@ const googleAuth = async (req, res, next) => {
       throw new Error('Your authority account verification was rejected.');
     }
 
-    await supabase.from('profiles').update({
-      last_login: new Date().toISOString(),
-      last_active: new Date().toISOString()
-    }).eq('id', profile.id);
+    const sessionToken = supabaseSession?.access_token || signToken(profile);
 
-    await logActivity('USER_LOGGED_IN', profile.id, null, { method: 'google' });
+    try {
+      await supabase.from('profiles').update({
+        last_login: new Date().toISOString(),
+        last_active: new Date().toISOString()
+      }).eq('id', profile.id);
+    } catch (_) {}
+
+    try {
+      await logActivity('USER_LOGGED_IN', profile.id, null, { method: 'google' });
+    } catch (_) {}
 
     res.json({
       _id: profile.id,
@@ -404,7 +620,7 @@ const googleAuth = async (req, res, next) => {
       verification_status: profile.verification_status,
       department: profile.department,
       jurisdiction: profile.jurisdiction,
-      token: data.session.access_token
+      token: sessionToken
     });
   } catch (error) {
     next(error);

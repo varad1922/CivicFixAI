@@ -1,4 +1,10 @@
 const supabase = require('../config/supabase');
+const {
+  isConnectivityError,
+  getAllUsers,
+  updateUser: updateFallbackUser,
+  findUserById
+} = require('../utils/authFallbackStore');
 
 const getStats = async (req, res, next) => {
   try {
@@ -12,7 +18,20 @@ const getStats = async (req, res, next) => {
     ]);
 
     const firstError = [users, active, citizens, authorities, pending, suspended].find(result => result.error)?.error;
-    if (firstError) throw new Error(firstError.message);
+    if (firstError) {
+      if (isConnectivityError(firstError)) {
+        const fallbackUsers = getAllUsers();
+        return res.json({
+          totalUsers: fallbackUsers.length,
+          activeUsers: fallbackUsers.filter(u => u.is_active).length,
+          citizens: fallbackUsers.filter(u => u.role === 'citizen').length,
+          authorities: fallbackUsers.filter(u => u.role === 'authority').length,
+          pendingVerifications: fallbackUsers.filter(u => u.role === 'authority' && u.verification_status === 'pending').length,
+          suspendedUsers: fallbackUsers.filter(u => u.verification_status === 'suspended').length
+        });
+      }
+      throw new Error(firstError.message);
+    }
 
     res.json({
       totalUsers: users.count || 0,
@@ -23,6 +42,17 @@ const getStats = async (req, res, next) => {
       suspendedUsers: suspended.count || 0
     });
   } catch (error) {
+    if (isConnectivityError(error)) {
+      const fallbackUsers = getAllUsers();
+      return res.json({
+        totalUsers: fallbackUsers.length,
+        activeUsers: fallbackUsers.filter(u => u.is_active).length,
+        citizens: fallbackUsers.filter(u => u.role === 'citizen').length,
+        authorities: fallbackUsers.filter(u => u.role === 'authority').length,
+        pendingVerifications: fallbackUsers.filter(u => u.role === 'authority' && u.verification_status === 'pending').length,
+        suspendedUsers: fallbackUsers.filter(u => u.verification_status === 'suspended').length
+      });
+    }
     next(error);
   }
 };
@@ -35,7 +65,27 @@ const getUsers = async (req, res, next) => {
       .in('role', ['citizen', 'authority'])
       .order('created_at', { ascending: false });
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (isConnectivityError(error)) {
+        const fallbackUsers = getAllUsers().filter(u => ['citizen', 'authority'].includes(u.role));
+        return res.json(fallbackUsers.map(u => ({
+          _id: u.id,
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          avatar: u.avatar,
+          authProvider: u.auth_provider,
+          verificationStatus: u.verification_status,
+          isActive: u.is_active,
+          lastLogin: u.last_login,
+          lastActive: u.last_active,
+          createdAt: u.created_at,
+          department: u.department,
+          jurisdiction: u.jurisdiction
+        })));
+      }
+      throw new Error(error.message);
+    }
 
     res.json((data || []).map(u => ({
       _id: u.id,
@@ -53,6 +103,24 @@ const getUsers = async (req, res, next) => {
       jurisdiction: u.jurisdiction
     })));
   } catch (error) {
+    if (isConnectivityError(error)) {
+      const fallbackUsers = getAllUsers().filter(u => ['citizen', 'authority'].includes(u.role));
+      return res.json(fallbackUsers.map(u => ({
+        _id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        avatar: u.avatar,
+        authProvider: u.auth_provider,
+        verificationStatus: u.verification_status,
+        isActive: u.is_active,
+        lastLogin: u.last_login,
+        lastActive: u.last_active,
+        createdAt: u.created_at,
+        department: u.department,
+        jurisdiction: u.jurisdiction
+      })));
+    }
     next(error);
   }
 };
@@ -63,13 +131,27 @@ const updateUserStatus = async (req, res, next) => {
     const userId = req.params.id;
     const validStatuses = ['pending', 'verified', 'rejected', 'suspended'];
 
-    const { data: target, error: targetError } = await supabase
-      .from('profiles')
-      .select('id, role')
-      .eq('id', userId)
-      .single();
+    // Try finding target in Supabase
+    let target = null;
+    let isDbOffline = false;
 
-    if (targetError || !target) {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, role')
+        .eq('id', userId)
+        .single();
+      if (!error && data) target = data;
+      if (error && isConnectivityError(error)) isDbOffline = true;
+    } catch (err) {
+      if (isConnectivityError(err)) isDbOffline = true;
+    }
+
+    if (!target && isDbOffline) {
+      target = findUserById(userId);
+    }
+
+    if (!target) {
       res.status(404);
       throw new Error('User not found');
     }
@@ -86,7 +168,6 @@ const updateUserStatus = async (req, res, next) => {
     if (status !== undefined) updateData.verification_status = status;
     if (isActive !== undefined) updateData.is_active = Boolean(isActive);
 
-    // Keep suspension semantics consistent: suspended = blocked login.
     if (status === 'suspended') updateData.is_active = false;
     if (status === 'verified') updateData.is_active = true;
 
@@ -94,6 +175,14 @@ const updateUserStatus = async (req, res, next) => {
       return res.json({
         message: 'No changes provided',
         user: target
+      });
+    }
+
+    if (isDbOffline) {
+      const updated = updateFallbackUser(userId, updateData);
+      return res.json({
+        message: 'Account updated successfully',
+        user: updated
       });
     }
 

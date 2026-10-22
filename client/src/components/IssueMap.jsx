@@ -5,11 +5,13 @@ import L from 'leaflet';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import { issuesApi } from '../services/api';
+import { MAP_LAYERS } from '../services/mapsService';
 import IssueStatusBadge from './IssueStatusBadge';
 import {
   Crosshair,
   ExternalLink,
-  RefreshCw
+  RefreshCw,
+  Layers
 } from 'lucide-react';
 
 // Default Leaflet icon fix
@@ -107,6 +109,7 @@ const IssueMap = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [currentLayer, setCurrentLayer] = useState('DARK_CARTO');
   const [centerTarget, setCenterTarget] = useState(
     !isNaN(queryLat) && !isNaN(queryLng)
       ? [queryLat, queryLng]
@@ -279,6 +282,20 @@ const IssueMap = () => {
 
         {/* Right Tools */}
         <div className="pointer-events-auto flex items-center gap-2">
+          {/* Map Layer Selector */}
+          <div className="relative">
+            <select
+              value={currentLayer}
+              onChange={(e) => setCurrentLayer(e.target.value)}
+              className="px-3 py-2.5 rounded-2xl bg-[#151520]/90 backdrop-blur-md border border-[#292938] text-[#F5F3FF] text-xs font-bold hover:border-purple-500/50 shadow-xl focus:outline-none transition-all cursor-pointer"
+              title="Change Map Style"
+            >
+              <option value="DARK_CARTO" className="bg-[#101018]">Dark Neon Map</option>
+              <option value="GOOGLE_ROAD" className="bg-[#101018]">Google Roadmap</option>
+              <option value="GOOGLE_SATELLITE" className="bg-[#101018]">Google Satellite</option>
+            </select>
+          </div>
+
           <button
             onClick={locateUser}
             className="p-3 rounded-2xl bg-[#151520]/90 backdrop-blur-md border border-[#292938] text-[#F5F3FF] hover:text-sky-400 hover:border-sky-500/50 shadow-xl transition-all"
@@ -297,7 +314,7 @@ const IssueMap = () => {
         </div>
       </div>
 
-      {/* Interactive CartoDB Dark Matter Map */}
+      {/* Interactive Leaflet Map with Google Maps / Dark Carto Layers */}
       <MapContainer
         center={centerTarget}
         zoom={13}
@@ -305,8 +322,10 @@ const IssueMap = () => {
         className="z-0"
       >
         <TileLayer
-          attribution='&copy; <a href="https://carto.com/">CARTO</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          key={currentLayer}
+          attribution={MAP_LAYERS[currentLayer]?.attribution || MAP_LAYERS.DARK_CARTO.attribution}
+          url={MAP_LAYERS[currentLayer]?.url || MAP_LAYERS.DARK_CARTO.url}
+          maxZoom={MAP_LAYERS[currentLayer]?.maxZoom || 20}
         />
 
         <MapCenterer center={centerTarget} zoom={14} />

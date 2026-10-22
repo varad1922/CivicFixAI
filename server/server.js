@@ -23,13 +23,20 @@ const server = http.createServer(app);
 initSocket(server);
 
 // Middleware
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    crossOriginEmbedderPolicy: false,
+  })
+);
 
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:5174',
   'http://localhost:3000',
   'http://localhost:4173',
   'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
   'https://civic-fix-ai-eosin.vercel.app',
   process.env.CLIENT_URL
 ].filter(Boolean);

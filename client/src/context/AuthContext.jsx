@@ -81,9 +81,15 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', nextToken);
       setToken(nextToken);
 
-      const freshUser = await loadUser(nextToken);
-      if (!freshUser) {
-        throw new Error('Unable to load account profile.');
+      const immediateUser = normalizeUser(response.data);
+      if (immediateUser) {
+        setUser(immediateUser);
+      }
+
+      try {
+        await loadUser(nextToken);
+      } catch (loadErr) {
+        console.debug('Background user profile sync:', loadErr);
       }
 
       return true;

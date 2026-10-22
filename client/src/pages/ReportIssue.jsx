@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { issuesApi, uploadApi, aiApi } from '../services/api';
+import { reverseGeocode } from '../services/mapsService';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -147,14 +148,22 @@ const ReportIssue = () => {
 
     setLoading(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const lng = pos.coords.longitude;
         const lat = pos.coords.latitude;
+        let formattedAddress = `GPS: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        try {
+          const resolved = await reverseGeocode(lat, lng);
+          if (resolved) formattedAddress = resolved;
+        } catch (e) {
+          console.warn('Reverse geocoding error:', e);
+        }
+
         setFormData((prev) => ({
           ...prev,
           location: {
             coordinates: [lng, lat],
-            address: `GPS: ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+            address: formattedAddress,
           },
           manualCoords: [lat, lng],
         }));
@@ -171,19 +180,29 @@ const ReportIssue = () => {
     );
   };
 
-  const handleManualLocationConfirm = () => {
+  const handleManualLocationConfirm = async () => {
     if (!formData.manualCoords) {
       setError('Please click on the map to place the issue pin.');
       return;
     }
     const [lat, lng] = formData.manualCoords;
+    setLoading(true);
+    let formattedAddress = `Map Pin: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    try {
+      const resolved = await reverseGeocode(lat, lng);
+      if (resolved) formattedAddress = resolved;
+    } catch (e) {
+      console.warn('Reverse geocoding error:', e);
+    }
+
     setFormData((prev) => ({
       ...prev,
       location: {
         coordinates: [lng, lat],
-        address: `Map Pin: ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+        address: formattedAddress,
       },
     }));
+    setLoading(false);
     setManualMapOpen(false);
     nextStep();
   };
